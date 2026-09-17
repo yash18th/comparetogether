@@ -81,6 +81,32 @@ const MainApp: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Swiggy OAuth redirect notification toast
+  const [swiggyToast, setSwiggyToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const integration = params.get('integration');
+      if (integration === 'swiggy_success') {
+        setSwiggyToast({
+          type: 'success',
+          message: 'Swiggy account connected via Builders Club MCP! Delivery address synced via get_addresses and real-time live prices unlocked.'
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (integration === 'swiggy_error') {
+        const errorDesc = params.get('error') || 'Authorization was cancelled or encountered an error';
+        setSwiggyToast({
+          type: 'error',
+          message: `Swiggy Connection: ${decodeURIComponent(errorDesc)}`
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {
+      // safe fallback
+    }
+  }, []);
+
   // Load favorites if user logged in
   useEffect(() => {
     if (user) {
@@ -186,6 +212,47 @@ const MainApp: React.FC = () => {
         theme={theme}
         onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
       />
+
+      {/* Swiggy OAuth Redirect Toast */}
+      {swiggyToast && (
+        <div style={{
+          position: 'fixed',
+          top: 76,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          maxWidth: 600,
+          width: '90%',
+          background: swiggyToast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '12px 20px',
+          borderRadius: 8,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          fontSize: '0.9rem',
+          fontWeight: 600
+        }}>
+          <span>{swiggyToast.message}</span>
+          <button
+            type="button"
+            onClick={() => setSwiggyToast(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              padding: 0,
+              lineHeight: 1
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <main>
         {viewMode === 'admin' ? (

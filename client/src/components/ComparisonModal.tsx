@@ -94,6 +94,14 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
   const { product, prices, comparison, priceHistory, averagePrice30d, matches, otherBranches } = data;
 
+  const handleCompareWithSwiggy = () => {
+    const apiBase = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
+    window.location.href = `${apiBase}/integrations/swiggy/connect`;
+  };
+
+  const hasPendingSwiggy = prices.some(p => p.platform_code === 'swiggy' && p.final_price_unavailable);
+  const isSwiggyLive = prices.some(p => p.platform_code === 'swiggy' && p.data_provenance === 'LIVE');
+
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
@@ -152,6 +160,81 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
               )}
             </div>
 
+            {/* Official Swiggy MCP Streamable HTTP Integration Card */}
+            {hasPendingSwiggy ? (
+              <div className="glass-panel" style={{
+                padding: '14px 18px',
+                background: 'linear-gradient(135deg, rgba(252, 128, 25, 0.08), rgba(226, 55, 68, 0.04))',
+                border: '1px solid rgba(252, 128, 25, 0.3)',
+                borderLeft: '4px solid #fc8019',
+                borderRadius: 10,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 12
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{
+                      background: 'linear-gradient(135deg, #fc8019, #e23744)',
+                      color: '#fff',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.5px'
+                    }}>
+                      SWIGGY BUILDERS CLUB MCP
+                    </span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Compare Live with Swiggy
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Official OAuth 2.1 + PKCE flow: Enter Phone & OTP on Swiggy → Backend exchanges code → Queries Swiggy /food (<code>get_addresses</code> → <code>search_restaurants</code> → <code>search_menu</code>) → Fetches real prices!
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCompareWithSwiggy}
+                  style={{
+                    background: 'linear-gradient(135deg, #fc8019, #e23744)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '8px 18px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 14px rgba(252, 128, 25, 0.35)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span>Compare with Swiggy</span>
+                  <ExternalLink size={13} />
+                </button>
+              </div>
+            ) : isSwiggyLive ? (
+              <div className="glass-panel" style={{
+                padding: '10px 16px',
+                background: 'rgba(56, 161, 105, 0.08)',
+                border: '1px solid rgba(56, 161, 105, 0.3)',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-emerald)', display: 'inline-block' }} />
+                <span style={{ fontSize: '0.84rem', color: 'var(--accent-emerald)', fontWeight: 600 }}>
+                  ● Swiggy /food MCP Live: Real-time restaurant menu & delivery price verified via your authorized session.
+                </span>
+              </div>
+            ) : null}
+
             {/* Comprehensive Line-Item Fee Breakdown Table */}
             <div>
               <h3 style={{ fontSize: '1.1rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -181,9 +264,30 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                             <span>{p.platform_name}</span>
                           </div>
                           {p.data_provenance === 'INTEGRATION_PENDING' ? (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-amber)', display: 'block', fontWeight: 600, opacity: 0.9 }}>
-                              Integration Pending
-                            </span>
+                            <div>
+                              <span style={{ fontSize: '0.65rem', color: 'var(--accent-amber)', display: 'block', fontWeight: 600, opacity: 0.9 }}>
+                                Integration Pending
+                              </span>
+                              {p.platform_code === 'swiggy' && (
+                                <button
+                                  type="button"
+                                  onClick={handleCompareWithSwiggy}
+                                  style={{
+                                    marginTop: 4,
+                                    background: 'rgba(252, 128, 25, 0.15)',
+                                    border: '1px solid rgba(252, 128, 25, 0.4)',
+                                    color: '#fc8019',
+                                    borderRadius: 4,
+                                    padding: '2px 6px',
+                                    fontSize: '0.64rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Compare with Swiggy
+                                </button>
+                              )}
+                            </div>
                           ) : p.data_provenance === 'LIVE' ? (
                             <span style={{ fontSize: '0.65rem', color: 'var(--accent-emerald)', display: 'block', fontWeight: 600 }}>
                               Live Verified
@@ -283,9 +387,32 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                           return (
                             <td key={p.id} style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
                               <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Final price unavailable</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--accent-sandstone)', opacity: 0.75 }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--accent-sandstone)', opacity: 0.75, marginBottom: p.platform_code === 'swiggy' ? 6 : 0 }}>
                                 Live checkout session required
                               </div>
+                              {p.platform_code === 'swiggy' && (
+                                <button
+                                  type="button"
+                                  onClick={handleCompareWithSwiggy}
+                                  style={{
+                                    background: 'linear-gradient(135deg, #fc8019, #e23744)',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: 5,
+                                    padding: '5px 10px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    boxShadow: '0 2px 8px rgba(252, 128, 25, 0.3)'
+                                  }}
+                                >
+                                  <span>Compare with Swiggy</span>
+                                  <ExternalLink size={11} />
+                                </button>
+                              )}
                             </td>
                           );
                         }
@@ -306,21 +433,45 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       <td>Direct Order Action</td>
                       {prices.map(p => (
                         <td key={p.id} style={{ textAlign: 'right' }}>
-                          <a
-                            href={p.order_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-primary"
-                            style={{
-                              fontSize: '0.78rem',
-                              padding: '6px 12px',
-                              textDecoration: 'none',
-                              display: 'inline-flex'
-                            }}
-                          >
-                            <span>Order</span>
-                            <ExternalLink size={12} />
-                          </a>
+                          {p.final_price_unavailable && p.platform_code === 'swiggy' ? (
+                            <button
+                              type="button"
+                              onClick={handleCompareWithSwiggy}
+                              style={{
+                                background: 'linear-gradient(135deg, #fc8019, #e23744)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '6px 12px',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                boxShadow: '0 2px 8px rgba(252, 128, 25, 0.3)'
+                              }}
+                            >
+                              <span>Compare with Swiggy</span>
+                              <ExternalLink size={12} />
+                            </button>
+                          ) : (
+                            <a
+                              href={p.order_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-primary"
+                              style={{
+                                fontSize: '0.78rem',
+                                padding: '6px 12px',
+                                textDecoration: 'none',
+                                display: 'inline-flex'
+                              }}
+                            >
+                              <span>Order</span>
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </td>
                       ))}
                     </tr>

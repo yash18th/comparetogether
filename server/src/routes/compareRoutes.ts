@@ -85,7 +85,7 @@ router.get('/:productId', (req, res) => {
           finalPriceUnavailable = true;
           unavailabilityReason = 'Swiggy MCP integration pending. User OAuth 2.1 authorization required.';
         } else {
-          dataProvenance = 'AUTHORIZED';
+          dataProvenance = 'LIVE';
           finalPriceUnavailable = false;
         }
       } else if (isZomato) {

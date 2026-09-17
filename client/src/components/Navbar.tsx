@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, ShieldCheck, User as UserIcon, Moon, Sun, Settings, Menu, X, ArrowRight } from 'lucide-react';
 import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { useMembership } from '../context/MembershipContext';
+import { api } from '../services/api';
 
 interface NavbarProps {
   onOpenLocation: () => void;
@@ -29,6 +30,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, logout } = useAuth();
   const { hasMembership, toggleMembership } = useMembership();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [swiggyConnected, setSwiggyConnected] = useState(false);
+
+  useEffect(() => {
+    api.getSwiggyStatus().then(status => {
+      setSwiggyConnected(Boolean(status?.connected));
+    }).catch(() => {});
+  }, []);
+
+  const handleConnectSwiggy = () => {
+    const apiBase = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
+    window.location.href = `${apiBase}/integrations/swiggy/connect`;
+  };
 
   const scrollToHowItWorks = () => {
     setMobileMenuOpen(false);
@@ -110,6 +123,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="Toggle Theme"
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+
+          {/* Compare with Swiggy (Official MCP) Button */}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleConnectSwiggy}
+            title={swiggyConnected ? "Swiggy /food MCP Live" : "Authorize Swiggy account via Builders Club MCP (OAuth 2.1)"}
+            style={{
+              borderColor: swiggyConnected ? 'rgba(56, 161, 105, 0.4)' : 'rgba(252, 128, 25, 0.4)',
+              background: swiggyConnected ? 'rgba(56, 161, 105, 0.08)' : 'rgba(252, 128, 25, 0.08)',
+              color: swiggyConnected ? 'var(--accent-emerald)' : '#fc8019',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              gap: 6
+            }}
+          >
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: swiggyConnected ? 'var(--accent-emerald)' : '#fc8019',
+              display: 'inline-block'
+            }} />
+            <span>{swiggyConnected ? 'Swiggy Live' : 'Compare with Swiggy'}</span>
           </button>
 
           {/* Admin Switcher */}

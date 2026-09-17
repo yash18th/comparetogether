@@ -159,8 +159,8 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
           </button>
         </form>
 
-        {/* Subtle Non-Blocking Engine Status Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18, minHeight: 22 }}>
+        {/* Subtle Non-Blocking Engine Status Indicator & Swiggy MCP Action */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18, minHeight: 22 }}>
           {comparisonEngineError ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(168, 88, 66, 0.18)', border: '1px solid rgba(168, 88, 66, 0.35)', padding: '3px 12px', borderRadius: 9999, fontSize: '0.78rem', color: '#e58e7b' }}>
               <span>Comparison service temporarily unavailable</span>
@@ -184,6 +184,31 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
               Checking comparison engine connectivity...
             </div>
           ) : null}
+
+          <button
+            type="button"
+            onClick={() => {
+              const apiBase = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
+              window.location.href = `${apiBase}/integrations/swiggy/connect`;
+            }}
+            title="Connect your Swiggy account to fetch live menu prices and address via official Builders Club MCP"
+            style={{
+              background: 'rgba(252, 128, 25, 0.12)',
+              border: '1px solid rgba(252, 128, 25, 0.35)',
+              color: '#fc8019',
+              borderRadius: 9999,
+              padding: '3px 12px',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fc8019', display: 'inline-block' }} />
+            <span>Compare with Swiggy (Official MCP)</span>
+          </button>
         </div>
 
         {/* Category Shortcuts Below Search Bar */}
