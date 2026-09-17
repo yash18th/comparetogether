@@ -1,0 +1,1561 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// api/search.ts
+var search_exports = {};
+__export(search_exports, {
+  default: () => handler
+});
+module.exports = __toCommonJS(search_exports);
+
+// api/_lib/catalogData.ts
+var RESTAURANTS = [
+  {
+    "id": "rest_empire",
+    "name": "Empire Restaurant",
+    "logo": "https://images.unsplash.com/photo-1552611052-33e04de081de?w=120&h=120&fit=crop",
+    "cuisine": "North Indian, Biryani, Mughlai, Kebabs",
+    "description": "Bangalore iconic late-night dining chain serving aromatic biryanis, grilled chicken, and rich curries.",
+    "rating": 4.4,
+    "price_for_two": 450,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "rest_meghana",
+    "name": "Meghana Foods",
+    "logo": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=120&h=120&fit=crop",
+    "cuisine": "Biryani, Andhra, South Indian",
+    "description": "Legendary Andhra-style chicken and mutton biryani with authentic fiery spices.",
+    "rating": 4.5,
+    "price_for_two": 500,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "rest_truffles",
+    "name": "Truffles",
+    "logo": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&h=120&fit=crop",
+    "cuisine": "American, Burgers, Continental, Desserts",
+    "description": "Famous for gourmet handcrafted burgers, peri-peri chicken steaks, and indulgent desserts.",
+    "rating": 4.6,
+    "price_for_two": 400,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "rest_nagarjuna",
+    "name": "Nagarjuna",
+    "logo": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=120&h=120&fit=crop",
+    "cuisine": "Andhra, South Indian, Meals",
+    "description": "Traditional banana leaf Andhra meals, spicy chilli chicken, and sholay kebabs.",
+    "rating": 4.3,
+    "price_for_two": 550,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "rest_thirdwave",
+    "name": "Third Wave Coffee",
+    "logo": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=120&h=120&fit=crop",
+    "cuisine": "Coffee, Beverages, Bakery, Continental",
+    "description": "Artisanal specialty coffee roasters, cold brews, and freshly baked pastries.",
+    "rating": 4.5,
+    "price_for_two": 350,
+    "created_at": "2026-09-17 12:35:24"
+  }
+];
+var BRANCHES = [
+  {
+    "id": "br_emp_ind",
+    "restaurant_id": "rest_empire",
+    "name": "Empire - Indiranagar",
+    "address": "80 Feet Road, HAL 2nd Stage, Indiranagar",
+    "city": "Bangalore",
+    "area": "Indiranagar",
+    "pincode": "560038",
+    "latitude": 12.9716,
+    "longitude": 77.6412,
+    "delivery_radius_km": 7,
+    "is_active": 1
+  },
+  {
+    "id": "br_emp_kor",
+    "restaurant_id": "rest_empire",
+    "name": "Empire - Koramangala",
+    "address": "5th Block, Jyoti Nivas College Road",
+    "city": "Bangalore",
+    "area": "Koramangala",
+    "pincode": "560095",
+    "latitude": 12.9352,
+    "longitude": 77.6245,
+    "delivery_radius_km": 6.5,
+    "is_active": 1
+  },
+  {
+    "id": "br_emp_whi",
+    "restaurant_id": "rest_empire",
+    "name": "Empire - Whitefield",
+    "address": "ITPL Main Road, Brookefield",
+    "city": "Bangalore",
+    "area": "Whitefield",
+    "pincode": "560066",
+    "latitude": 12.9698,
+    "longitude": 77.7499,
+    "delivery_radius_km": 8,
+    "is_active": 1
+  },
+  {
+    "id": "br_emp_hsr",
+    "restaurant_id": "rest_empire",
+    "name": "Empire - HSR Layout",
+    "address": "Sector 7, 14th Main Road",
+    "city": "Bangalore",
+    "area": "HSR Layout",
+    "pincode": "560102",
+    "latitude": 12.9121,
+    "longitude": 77.6446,
+    "delivery_radius_km": 6,
+    "is_active": 1
+  },
+  {
+    "id": "br_emp_jpn",
+    "restaurant_id": "rest_empire",
+    "name": "Empire - JP Nagar",
+    "address": "24th Main Road, JP Nagar 5th Phase",
+    "city": "Bangalore",
+    "area": "JP Nagar",
+    "pincode": "560078",
+    "latitude": 12.9063,
+    "longitude": 77.5857,
+    "delivery_radius_km": 6.5,
+    "is_active": 1
+  },
+  {
+    "id": "br_meg_ind",
+    "restaurant_id": "rest_meghana",
+    "name": "Meghana Foods - Indiranagar",
+    "address": "CMH Road, Near Metro Station, Indiranagar",
+    "city": "Bangalore",
+    "area": "Indiranagar",
+    "pincode": "560038",
+    "latitude": 12.9784,
+    "longitude": 77.6408,
+    "delivery_radius_km": 6,
+    "is_active": 1
+  },
+  {
+    "id": "br_meg_kor",
+    "restaurant_id": "rest_meghana",
+    "name": "Meghana Foods - Koramangala",
+    "address": "1st Block, Near Forum Mall, Koramangala",
+    "city": "Bangalore",
+    "area": "Koramangala",
+    "pincode": "560095",
+    "latitude": 12.934,
+    "longitude": 77.619,
+    "delivery_radius_km": 7,
+    "is_active": 1
+  },
+  {
+    "id": "br_truf_kor",
+    "restaurant_id": "rest_truffles",
+    "name": "Truffles - Koramangala",
+    "address": "93, 4th B Cross, 5th Block, Koramangala",
+    "city": "Bangalore",
+    "area": "Koramangala",
+    "pincode": "560095",
+    "latitude": 12.9348,
+    "longitude": 77.6212,
+    "delivery_radius_km": 6,
+    "is_active": 1
+  },
+  {
+    "id": "br_truf_ind",
+    "restaurant_id": "rest_truffles",
+    "name": "Truffles - Indiranagar",
+    "address": "100 Feet Road, Indiranagar",
+    "city": "Bangalore",
+    "area": "Indiranagar",
+    "pincode": "560038",
+    "latitude": 12.969,
+    "longitude": 77.643,
+    "delivery_radius_km": 6.5,
+    "is_active": 1
+  },
+  {
+    "id": "br_nag_ind",
+    "restaurant_id": "rest_nagarjuna",
+    "name": "Nagarjuna - Indiranagar",
+    "address": "Double Road, Indiranagar",
+    "city": "Bangalore",
+    "area": "Indiranagar",
+    "pincode": "560038",
+    "latitude": 12.971,
+    "longitude": 77.64,
+    "delivery_radius_km": 6,
+    "is_active": 1
+  },
+  {
+    "id": "br_twc_ind",
+    "restaurant_id": "rest_thirdwave",
+    "name": "Third Wave Coffee - Indiranagar",
+    "address": "12th Main Road, Indiranagar",
+    "city": "Bangalore",
+    "area": "Indiranagar",
+    "pincode": "560038",
+    "latitude": 12.972,
+    "longitude": 77.642,
+    "delivery_radius_km": 5,
+    "is_active": 1
+  },
+  {
+    "id": "br_twc_kor",
+    "restaurant_id": "rest_thirdwave",
+    "name": "Third Wave Coffee - Koramangala",
+    "address": "4th Block, 80 Feet Road, Koramangala",
+    "city": "Bangalore",
+    "area": "Koramangala",
+    "pincode": "560034",
+    "latitude": 12.932,
+    "longitude": 77.628,
+    "delivery_radius_km": 5,
+    "is_active": 1
+  }
+];
+var PRODUCTS = [
+  {
+    "id": "prod_emp_ckn_biry_ind",
+    "restaurant_branch_id": "br_emp_ind",
+    "name": "Empire Special Chicken Biryani",
+    "normalized_name": "chicken biryani",
+    "description": "Aromatic kacchi biryani layered with marinated chicken, saffron rice, and signature whole spices. Served with raita & salan.",
+    "category": "Biryani",
+    "cuisine": "Mughlai",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 500,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_emp_veg_biry_ind",
+    "restaurant_branch_id": "br_emp_ind",
+    "name": "Veg Dum Biryani",
+    "normalized_name": "veg biryani",
+    "description": "Fresh garden vegetables, paneer cubes, and aromatic basmati rice slow-cooked on dum.",
+    "category": "Biryani",
+    "cuisine": "North Indian",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 450,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_emp_pbm_ind",
+    "restaurant_branch_id": "br_emp_ind",
+    "name": "Paneer Butter Masala",
+    "normalized_name": "paneer butter masala",
+    "description": "Creamy cottage cheese cubes simmered in a luscious tomato and cashew butter gravy.",
+    "category": "Curry",
+    "cuisine": "North Indian",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 400,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_emp_kebab_ind",
+    "restaurant_branch_id": "br_emp_ind",
+    "name": "Empire Coin Parotta with Grill Chicken",
+    "normalized_name": "grilled chicken with parotta",
+    "description": "Quarter chicken slow-roasted with pepper marinade, served with 2 crispy flaky coin parottas.",
+    "category": "Fast Food",
+    "cuisine": "Mughlai",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 380,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_emp_ckn_biry_kor",
+    "restaurant_branch_id": "br_emp_kor",
+    "name": "Empire Special Chicken Biryani",
+    "normalized_name": "chicken biryani",
+    "description": "Aromatic kacchi biryani layered with marinated chicken, saffron rice, and signature whole spices. Served with raita & salan.",
+    "category": "Biryani",
+    "cuisine": "Mughlai",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 500,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_meg_ckn_biry_ind",
+    "restaurant_branch_id": "br_meg_ind",
+    "name": "Meghana Special Chicken Biryani",
+    "normalized_name": "chicken biryani",
+    "description": "Signature boneless Andhra chicken fry layered on aromatic spicy biryani rice. Known for its intense flavor.",
+    "category": "Biryani",
+    "cuisine": "Andhra",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 550,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_meg_paneer_biry_ind",
+    "restaurant_branch_id": "br_meg_ind",
+    "name": "Meghana Paneer Biryani",
+    "normalized_name": "paneer biryani",
+    "description": "Crispy spiced paneer tossed in fiery Andhra masala layered with fragrant basmati rice.",
+    "category": "Biryani",
+    "cuisine": "Andhra",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 500,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_truf_burger_ind",
+    "restaurant_branch_id": "br_truf_ind",
+    "name": "All American Cheese Burger",
+    "normalized_name": "all american burger",
+    "description": "Juicy handcrafted patty with melted cheddar, crisp lettuce, gherkins, and house secret burger relish. Served with fries.",
+    "category": "Burger",
+    "cuisine": "American",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 350,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_truf_pasta_ind",
+    "restaurant_branch_id": "br_truf_ind",
+    "name": "Peri Peri Veg Pasta",
+    "normalized_name": "peri peri pasta",
+    "description": "Penne pasta tossed in spicy creamy peri-peri cheese sauce with bell peppers and black olives.",
+    "category": "Italian",
+    "cuisine": "Continental",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 420,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1621996346565-e3d5d6281691?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_nag_dosa_ind",
+    "restaurant_branch_id": "br_nag_ind",
+    "name": "Special Masala Dosa",
+    "normalized_name": "masala dosa",
+    "description": "Crisp golden fermented rice crepe smeared with red chutney and stuffed with spiced potato mash. Served with 2 chutneys & sambar.",
+    "category": "South Indian",
+    "cuisine": "South Indian",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 280,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_nag_chilli_ind",
+    "restaurant_branch_id": "br_nag_ind",
+    "name": "Nagarjuna Andhra Chilli Chicken",
+    "normalized_name": "andhra chilli chicken",
+    "description": "Fiery green chilli-tossed chicken chunks saut\xE9ed with curry leaves and Andhra spices.",
+    "category": "Starters",
+    "cuisine": "South Indian",
+    "vegetarian": 0,
+    "vegan": 0,
+    "portion_size": 320,
+    "portion_unit": "g",
+    "image": "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  },
+  {
+    "id": "prod_twc_coldbrew_ind",
+    "restaurant_branch_id": "br_twc_ind",
+    "name": "Classic Vietnamese Cold Brew",
+    "normalized_name": "cold brew coffee",
+    "description": "Single-origin Arabica coffee steeped for 18 hours, paired with sweet condensed milk over ice.",
+    "category": "Beverages",
+    "cuisine": "Coffee",
+    "vegetarian": 1,
+    "vegan": 0,
+    "portion_size": 350,
+    "portion_unit": "ml",
+    "image": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=500&h=350&fit=crop",
+    "is_available": 1,
+    "created_at": "2026-09-17 12:35:24"
+  }
+];
+var PRODUCT_PRICES = [
+  {
+    "id": "pr_emp_biry_zom",
+    "product_id": "prod_emp_ckn_biry_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 220,
+    "delivery_fee": 28,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 12,
+    "discount": 35,
+    "final_price": 248,
+    "membership_discount": 22,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com/bangalore/hotel-empire-indiranagar/order?item=Chicken+Biryani",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:27:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_biry_swg",
+    "product_id": "prod_emp_ckn_biry_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 210,
+    "delivery_fee": 22,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 11,
+    "discount": 30,
+    "final_price": 232,
+    "membership_discount": 21,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com/restaurants/hotel-empire-indiranagar-bangalore?search=Chicken+Biryani",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:23:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_biry_eat",
+    "product_id": "prod_emp_ckn_biry_ind",
+    "platform_id": "plat_eatclub",
+    "item_price": 215,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 0,
+    "taxes": 9,
+    "discount": 40,
+    "final_price": 184,
+    "membership_discount": 20,
+    "membership_type": "EatClub Pass",
+    "currency": "INR",
+    "order_url": "https://eatclub.in/restaurant/empire-indiranagar/chicken-biryani",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:20:24",
+    "platform_code": "eatclub",
+    "platform_name": "EatClub",
+    "platform_logo": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_biry_dir",
+    "product_id": "prod_emp_ckn_biry_ind",
+    "platform_id": "plat_direct",
+    "item_price": 200,
+    "delivery_fee": 20,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 10,
+    "discount": 20,
+    "final_price": 220,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://hotelempire.in/order",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:30:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_biry_zom",
+    "product_id": "prod_meg_ckn_biry_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 310,
+    "delivery_fee": 32,
+    "platform_fee": 8,
+    "packaging_fee": 18,
+    "taxes": 16,
+    "discount": 40,
+    "final_price": 344,
+    "membership_discount": 31,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com/bangalore/meghana-foods-indiranagar/order",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:25:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_biry_swg",
+    "product_id": "prod_meg_ckn_biry_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 299,
+    "delivery_fee": 25,
+    "platform_fee": 7,
+    "packaging_fee": 15,
+    "taxes": 15,
+    "discount": 30,
+    "final_price": 331,
+    "membership_discount": 30,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com/restaurants/meghana-foods-indiranagar",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:31:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_biry_dir",
+    "product_id": "prod_meg_ckn_biry_ind",
+    "platform_id": "plat_direct",
+    "item_price": 290,
+    "delivery_fee": 20,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 15,
+    "discount": 25,
+    "final_price": 310,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://meghanafoods.co.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:05:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_pbm_zom",
+    "product_id": "prod_emp_pbm_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 240,
+    "delivery_fee": 28,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 13,
+    "discount": 35,
+    "final_price": 269,
+    "membership_discount": 24,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:17:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_pbm_swg",
+    "product_id": "prod_emp_pbm_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 230,
+    "delivery_fee": 22,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 12,
+    "discount": 30,
+    "final_price": 253,
+    "membership_discount": 23,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:21:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_pbm_eat",
+    "product_id": "prod_emp_pbm_ind",
+    "platform_id": "plat_eatclub",
+    "item_price": 225,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 0,
+    "taxes": 10,
+    "discount": 35,
+    "final_price": 200,
+    "membership_discount": 15,
+    "membership_type": "EatClub Pass",
+    "currency": "INR",
+    "order_url": "https://eatclub.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:15:24",
+    "platform_code": "eatclub",
+    "platform_name": "EatClub",
+    "platform_logo": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_pbm_dir",
+    "product_id": "prod_emp_pbm_ind",
+    "platform_id": "plat_direct",
+    "item_price": 215,
+    "delivery_fee": 20,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 11,
+    "discount": 20,
+    "final_price": 236,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://hotelempire.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:29:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_vbiry_zom",
+    "product_id": "prod_emp_veg_biry_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 190,
+    "delivery_fee": 28,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 10,
+    "discount": 25,
+    "final_price": 226,
+    "membership_discount": 19,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:10:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_vbiry_swg",
+    "product_id": "prod_emp_veg_biry_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 185,
+    "delivery_fee": 22,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 10,
+    "discount": 20,
+    "final_price": 216,
+    "membership_discount": 18,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:24:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_vbiry_eat",
+    "product_id": "prod_emp_veg_biry_ind",
+    "platform_id": "plat_eatclub",
+    "item_price": 180,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 0,
+    "taxes": 8,
+    "discount": 30,
+    "final_price": 158,
+    "membership_discount": 15,
+    "membership_type": "EatClub Pass",
+    "currency": "INR",
+    "order_url": "https://eatclub.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:00:24",
+    "platform_code": "eatclub",
+    "platform_name": "EatClub",
+    "platform_logo": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_brg_zom",
+    "product_id": "prod_truf_burger_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 270,
+    "delivery_fee": 30,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 14,
+    "discount": 40,
+    "final_price": 297,
+    "membership_discount": 27,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:26:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_brg_swg",
+    "product_id": "prod_truf_burger_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 260,
+    "delivery_fee": 25,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 14,
+    "discount": 35,
+    "final_price": 283,
+    "membership_discount": 26,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:28:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_brg_dir",
+    "product_id": "prod_truf_burger_ind",
+    "platform_id": "plat_direct",
+    "item_price": 250,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 13,
+    "discount": 25,
+    "final_price": 248,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://truffles.co.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 11:55:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_dosa_zom",
+    "product_id": "prod_nag_dosa_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 120,
+    "delivery_fee": 25,
+    "platform_fee": 8,
+    "packaging_fee": 10,
+    "taxes": 7,
+    "discount": 15,
+    "final_price": 155,
+    "membership_discount": 12,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:20:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_dosa_swg",
+    "product_id": "prod_nag_dosa_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 115,
+    "delivery_fee": 20,
+    "platform_fee": 7,
+    "packaging_fee": 8,
+    "taxes": 6,
+    "discount": 10,
+    "final_price": 146,
+    "membership_discount": 11,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:13:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_dosa_dir",
+    "product_id": "prod_nag_dosa_ind",
+    "platform_id": "plat_direct",
+    "item_price": 105,
+    "delivery_fee": 15,
+    "platform_fee": 0,
+    "packaging_fee": 5,
+    "taxes": 5,
+    "discount": 10,
+    "final_price": 120,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://nagarjunarestaurants.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 11:50:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_twc_cb_zom",
+    "product_id": "prod_twc_coldbrew_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 230,
+    "delivery_fee": 25,
+    "platform_fee": 8,
+    "packaging_fee": 12,
+    "taxes": 12,
+    "discount": 30,
+    "final_price": 257,
+    "membership_discount": 23,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:23:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_twc_cb_swg",
+    "product_id": "prod_twc_coldbrew_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 225,
+    "delivery_fee": 20,
+    "platform_fee": 7,
+    "packaging_fee": 10,
+    "taxes": 12,
+    "discount": 25,
+    "final_price": 249,
+    "membership_discount": 22,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:17:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_twc_cb_dir",
+    "product_id": "prod_twc_coldbrew_ind",
+    "platform_id": "plat_direct",
+    "item_price": 210,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 5,
+    "taxes": 11,
+    "discount": 20,
+    "final_price": 206,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://thirdwavecoffeeroasters.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 11:35:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_kebab_zom",
+    "product_id": "prod_emp_kebab_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 230,
+    "delivery_fee": 25,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 12,
+    "discount": 30,
+    "final_price": 260,
+    "membership_discount": 23,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:21:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_kebab_swg",
+    "product_id": "prod_emp_kebab_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 220,
+    "delivery_fee": 20,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 11,
+    "discount": 25,
+    "final_price": 245,
+    "membership_discount": 22,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:19:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_kebab_eat",
+    "product_id": "prod_emp_kebab_ind",
+    "platform_id": "plat_eatclub",
+    "item_price": 210,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 0,
+    "taxes": 9,
+    "discount": 35,
+    "final_price": 184,
+    "membership_discount": 20,
+    "membership_type": "EatClub Pass",
+    "currency": "INR",
+    "order_url": "https://eatclub.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:13:24",
+    "platform_code": "eatclub",
+    "platform_name": "EatClub",
+    "platform_logo": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_kebab_dir",
+    "product_id": "prod_emp_kebab_ind",
+    "platform_id": "plat_direct",
+    "item_price": 195,
+    "delivery_fee": 15,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 10,
+    "discount": 15,
+    "final_price": 215,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://hotelempire.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:05:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_ckn_kor_zom",
+    "product_id": "prod_emp_ckn_biry_kor",
+    "platform_id": "plat_zomato",
+    "item_price": 225,
+    "delivery_fee": 28,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 12,
+    "discount": 35,
+    "final_price": 253,
+    "membership_discount": 22,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:25:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_ckn_kor_swg",
+    "product_id": "prod_emp_ckn_biry_kor",
+    "platform_id": "plat_swiggy",
+    "item_price": 215,
+    "delivery_fee": 22,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 11,
+    "discount": 30,
+    "final_price": 237,
+    "membership_discount": 21,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:27:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_ckn_kor_eat",
+    "product_id": "prod_emp_ckn_biry_kor",
+    "platform_id": "plat_eatclub",
+    "item_price": 215,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 0,
+    "taxes": 9,
+    "discount": 40,
+    "final_price": 184,
+    "membership_discount": 20,
+    "membership_type": "EatClub Pass",
+    "currency": "INR",
+    "order_url": "https://eatclub.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:20:24",
+    "platform_code": "eatclub",
+    "platform_name": "EatClub",
+    "platform_logo": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_emp_ckn_kor_dir",
+    "product_id": "prod_emp_ckn_biry_kor",
+    "platform_id": "plat_direct",
+    "item_price": 205,
+    "delivery_fee": 20,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 10,
+    "discount": 20,
+    "final_price": 225,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://hotelempire.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 11:55:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_pnb_zom",
+    "product_id": "prod_meg_paneer_biry_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 280,
+    "delivery_fee": 30,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 14,
+    "discount": 35,
+    "final_price": 312,
+    "membership_discount": 28,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:24:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_pnb_swg",
+    "product_id": "prod_meg_paneer_biry_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 270,
+    "delivery_fee": 24,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 13,
+    "discount": 30,
+    "final_price": 296,
+    "membership_discount": 27,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:16:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_meg_pnb_dir",
+    "product_id": "prod_meg_paneer_biry_ind",
+    "platform_id": "plat_direct",
+    "item_price": 260,
+    "delivery_fee": 20,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 12,
+    "discount": 20,
+    "final_price": 282,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://meghanafoods.co.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:10:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_pst_zom",
+    "product_id": "prod_truf_pasta_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 260,
+    "delivery_fee": 28,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 13,
+    "discount": 35,
+    "final_price": 289,
+    "membership_discount": 26,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:20:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_pst_swg",
+    "product_id": "prod_truf_pasta_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 250,
+    "delivery_fee": 22,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 12,
+    "discount": 30,
+    "final_price": 273,
+    "membership_discount": 25,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:23:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_truf_pst_dir",
+    "product_id": "prod_truf_pasta_ind",
+    "platform_id": "plat_direct",
+    "item_price": 240,
+    "delivery_fee": 0,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 12,
+    "discount": 20,
+    "final_price": 242,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://truffles.co.in",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:00:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_chl_zom",
+    "product_id": "prod_nag_chilli_ind",
+    "platform_id": "plat_zomato",
+    "item_price": 290,
+    "delivery_fee": 30,
+    "platform_fee": 8,
+    "packaging_fee": 15,
+    "taxes": 15,
+    "discount": 35,
+    "final_price": 323,
+    "membership_discount": 29,
+    "membership_type": "Zomato Gold",
+    "currency": "INR",
+    "order_url": "https://www.zomato.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:27:24",
+    "platform_code": "zomato",
+    "platform_name": "Zomato",
+    "platform_logo": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_chl_swg",
+    "product_id": "prod_nag_chilli_ind",
+    "platform_id": "plat_swiggy",
+    "item_price": 280,
+    "delivery_fee": 25,
+    "platform_fee": 7,
+    "packaging_fee": 12,
+    "taxes": 14,
+    "discount": 30,
+    "final_price": 308,
+    "membership_discount": 28,
+    "membership_type": "Swiggy One",
+    "currency": "INR",
+    "order_url": "https://www.swiggy.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 12:21:24",
+    "platform_code": "swiggy",
+    "platform_name": "Swiggy",
+    "platform_logo": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop",
+    "integration_status": "authorized",
+    "is_official": 1
+  },
+  {
+    "id": "pr_nag_chl_dir",
+    "product_id": "prod_nag_chilli_ind",
+    "platform_id": "plat_direct",
+    "item_price": 265,
+    "delivery_fee": 15,
+    "platform_fee": 0,
+    "packaging_fee": 10,
+    "taxes": 13,
+    "discount": 20,
+    "final_price": 283,
+    "membership_discount": 0,
+    "membership_type": null,
+    "currency": "INR",
+    "order_url": "https://nagarjunarestaurants.com",
+    "availability": 1,
+    "updated_at": "2026-09-17 11:45:24",
+    "platform_code": "direct",
+    "platform_name": "Direct Restaurant Order",
+    "platform_logo": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop",
+    "integration_status": "partner_feed",
+    "is_official": 1
+  }
+];
+
+// api/_lib/engine.ts
+function searchCatalog(params) {
+  const rawQuery = (params.query || "").trim().toLowerCase();
+  const city = (params.city || "Bangalore").toLowerCase();
+  const area = (params.area || "").toLowerCase();
+  const category = params.category && params.category !== "All" ? params.category.toLowerCase() : "";
+  const activeBranches = BRANCHES.filter((b) => {
+    if (!b.is_active) return false;
+    if (city && b.city.toLowerCase() !== city) return false;
+    if (area && b.area.toLowerCase() !== area && !b.area.toLowerCase().includes(area)) return false;
+    return true;
+  });
+  const branchMap = new Map(activeBranches.map((b) => [b.id, b]));
+  const restaurantMap = new Map(RESTAURANTS.map((r) => [r.id, r]));
+  let matchedProducts = PRODUCTS.filter((p) => {
+    const branch = branchMap.get(p.restaurant_branch_id);
+    if (!branch) return false;
+    if (params.vegetarian === true && !p.vegetarian) return false;
+    if (params.vegetarian === false && p.vegetarian) return false;
+    if (category) {
+      if (p.category.toLowerCase() !== category) return false;
+    }
+    if (params.cuisine) {
+      const c = params.cuisine.toLowerCase();
+      if (!p.cuisine.toLowerCase().includes(c)) return false;
+    }
+    return true;
+  });
+  let scoredItems = matchedProducts.map((p) => {
+    const branch = branchMap.get(p.restaurant_branch_id);
+    const rest = restaurantMap.get(branch.restaurant_id);
+    let score = 1;
+    if (rawQuery) {
+      const text = `${p.name} ${rest.name} ${branch.name} ${p.category} ${p.cuisine}`.toLowerCase();
+      const tokens = rawQuery.split(/\s+/).filter(Boolean);
+      let matchCount = 0;
+      for (const t of tokens) {
+        if (text.includes(t)) matchCount++;
+      }
+      if (text.includes(rawQuery)) {
+        score += 2;
+      }
+      score += matchCount / tokens.length * 1.5;
+      if (matchCount === 0 && !text.includes(rawQuery)) {
+        score = 0;
+      }
+    }
+    return {
+      product: p,
+      branch,
+      restaurant: rest,
+      score
+    };
+  });
+  if (rawQuery) {
+    scoredItems = scoredItems.filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
+  }
+  const results = scoredItems.map((item) => {
+    const p = item.product;
+    const branch = item.branch;
+    const rest = item.restaurant;
+    const prices = PRODUCT_PRICES.filter((pp) => pp.product_id === p.id).map((pp) => {
+      let finalPrice = pp.final_price;
+      let membershipApplied = false;
+      if (params.hasMembership && pp.membership_discount > 0) {
+        finalPrice = Math.max(0, pp.final_price - pp.membership_discount);
+        membershipApplied = true;
+      }
+      return {
+        id: pp.id,
+        platform_id: pp.platform_id,
+        item_price: pp.item_price,
+        delivery_fee: pp.delivery_fee,
+        platform_fee: pp.platform_fee,
+        packaging_fee: pp.packaging_fee,
+        taxes: pp.taxes,
+        discount: pp.discount,
+        final_price: finalPrice,
+        membership_discount: pp.membership_discount,
+        membership_type: pp.membership_type,
+        currency: pp.currency,
+        order_url: pp.order_url,
+        availability: pp.availability,
+        updated_at: pp.updated_at,
+        platform_name: pp.platform_name,
+        platform_code: pp.platform_code,
+        platform_logo: pp.platform_logo,
+        integration_status: pp.integration_status,
+        is_official: pp.is_official,
+        addons: 0,
+        final_price_unavailable: Boolean(pp.final_price_unavailable),
+        data_provenance: pp.data_provenance,
+        membership_applied: membershipApplied
+      };
+    }).filter((pr) => {
+      if (params.platform && pr.platform_code !== params.platform) return false;
+      return true;
+    });
+    const verifiedPrices = prices.filter((pr) => !pr.final_price_unavailable && pr.final_price > 0);
+    const validPrices = prices.filter((pr) => pr.item_price > 0);
+    const lowestFinalPrice = verifiedPrices.length > 0 ? Math.min(...verifiedPrices.map((pr) => pr.final_price)) : validPrices.length > 0 ? Math.min(...validPrices.map((pr) => pr.item_price)) : 0;
+    const highestFinalPrice = verifiedPrices.length > 0 ? Math.max(...verifiedPrices.map((pr) => pr.final_price)) : validPrices.length > 0 ? Math.max(...validPrices.map((pr) => pr.item_price)) : 0;
+    const lowestItemPrice = validPrices.length > 0 ? Math.min(...validPrices.map((pr) => pr.item_price)) : 0;
+    const maxSavings = verifiedPrices.length >= 2 ? Math.max(0, highestFinalPrice - lowestFinalPrice) : 0;
+    let pricePer100g = void 0;
+    if (p.portion_size && (p.portion_unit === "g" || p.portion_unit === "ml")) {
+      pricePer100g = Math.round(lowestFinalPrice / p.portion_size * 100 * 10) / 10;
+    }
+    const savingsText = maxSavings > 0 ? `Save \u20B9${maxSavings} vs highest verified total` : verifiedPrices.length >= 2 ? "Prices are verified identical across platforms" : "Transparent price breakdown shown";
+    return {
+      product_id: p.id,
+      product_name: p.name,
+      product_description: p.description,
+      product_category: p.category,
+      product_cuisine: p.cuisine,
+      vegetarian: p.vegetarian,
+      vegan: p.vegan,
+      portion_size: p.portion_size,
+      portion_unit: p.portion_unit,
+      product_image: p.image,
+      branch_id: branch.id,
+      branch_name: branch.name,
+      branch_address: branch.address,
+      branch_area: branch.area,
+      branch_city: branch.city,
+      branch_pincode: branch.pincode,
+      restaurant_id: rest.id,
+      restaurant_name: rest.name,
+      restaurant_logo: rest.logo,
+      restaurant_rating: rest.rating,
+      relevanceScore: item.score,
+      prices,
+      lowestFinalPrice,
+      highestFinalPrice,
+      lowestItemPrice,
+      maxSavings,
+      pricePer100g,
+      savingsText
+    };
+  });
+  let filtered = results;
+  if (params.minPrice !== void 0) {
+    filtered = filtered.filter((r) => r.lowestFinalPrice >= params.minPrice);
+  }
+  if (params.maxPrice !== void 0) {
+    filtered = filtered.filter((r) => r.lowestFinalPrice <= params.maxPrice);
+  }
+  if (params.sortBy === "item_price_asc") {
+    filtered.sort((a, b) => a.lowestItemPrice - b.lowestItemPrice);
+  } else if (params.sortBy === "discount_desc") {
+    filtered.sort((a, b) => b.maxSavings - a.maxSavings);
+  } else if (params.sortBy === "rating") {
+    filtered.sort((a, b) => b.restaurant_rating - a.restaurant_rating);
+  } else {
+    filtered.sort((a, b) => a.lowestFinalPrice - b.lowestFinalPrice);
+  }
+  return filtered;
+}
+
+// api/search.ts
+function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  try {
+    const body = req.body || {};
+    const qp = req.query || {};
+    const query = (body.query ?? body.q ?? qp.q ?? qp.query ?? "").toString();
+    const category = body.category || qp.category;
+    const location = body.location || {};
+    const area = location.name || body.area || qp.area || "";
+    const city = location.city || body.city || qp.city || "Bangalore";
+    const pincode = location.pincode || body.pincode || qp.pincode || "";
+    let vegetarian = void 0;
+    if (body.vegOnly === true) vegetarian = true;
+    else if (body.nonVegOnly === true) vegetarian = false;
+    else if (body.vegetarian !== void 0) vegetarian = Boolean(body.vegetarian);
+    else if (qp.vegetarian !== void 0) vegetarian = qp.vegetarian === "true";
+    const minPrice = body.minPrice ? Number(body.minPrice) : qp.minPrice ? Number(qp.minPrice) : void 0;
+    const maxPrice = body.maxPrice ? Number(body.maxPrice) : qp.maxPrice ? Number(qp.maxPrice) : void 0;
+    const platform = body.platform || qp.platform;
+    const sortBy = body.sortBy || qp.sortBy;
+    const hasMembership = Boolean(body.membership || qp.membership === "true");
+    const results = searchCatalog({
+      query,
+      category,
+      city,
+      area,
+      pincode,
+      vegetarian,
+      minPrice,
+      maxPrice,
+      platform,
+      sortBy,
+      hasMembership
+    });
+    res.status(200).json({
+      success: true,
+      count: results.length,
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || "Error executing search" });
+  }
+}
