@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Sparkles, ArrowRight } from 'lucide-react';
 import { useLocation } from '../context/LocationContext';
+import { getApiBaseUrl } from '../services/api';
 
 interface HeritageHeroProps {
   onSearch: (query: string) => void;
@@ -188,8 +189,7 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
           <button
             type="button"
             onClick={() => {
-              const apiBase = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
-              window.location.href = `${apiBase}/integrations/swiggy/connect`;
+              window.location.href = `${getApiBaseUrl()}/integrations/swiggy/connect`;
             }}
             title="Connect your Swiggy account to fetch live menu prices and address via official Builders Club MCP"
             style={{

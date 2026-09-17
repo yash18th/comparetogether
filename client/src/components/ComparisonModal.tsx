@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X, ExternalLink, Bell, Scale, ShieldCheck, Sparkles, MapPin, CheckCircle } from 'lucide-react';
-import { api } from '../services/api';
+import { api, getApiBaseUrl } from '../services/api';
 import type { ComparisonData } from '../types';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { PriceAlertModal } from './PriceAlertModal';
@@ -95,8 +95,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
   const { product, prices, comparison, priceHistory, averagePrice30d, matches, otherBranches } = data;
 
   const handleCompareWithSwiggy = () => {
-    const apiBase = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
-    window.location.href = `${apiBase}/integrations/swiggy/connect`;
+    window.location.href = `${getApiBaseUrl()}/integrations/swiggy/connect`;
   };
 
   const hasPendingSwiggy = prices.some(p => p.platform_code === 'swiggy' && p.final_price_unavailable);
