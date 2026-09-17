@@ -16,7 +16,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'https://comparetogether.vercel.app',
+  process.env.CORS_ORIGIN
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests or same-origin
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+}));
+
 app.use(express.json());
 
 // Initialize & Seed Database
@@ -31,11 +52,10 @@ app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/integrations/swiggy', swiggyRoutes);
 
-
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'FoodCompare API Engine',
+    service: 'FoodCompare',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });

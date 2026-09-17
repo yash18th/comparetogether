@@ -42,6 +42,7 @@ const MainApp: React.FC = () => {
   const [products, setProducts] = useState<SearchProductItem[]>([]);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -121,11 +122,14 @@ const MainApp: React.FC = () => {
   }, [user]);
 
   // Execute search API query
-  const executeSearch = useCallback(async () => {
+  const executeSearch = useCallback(async (overrideQuery?: string) => {
     // Only query backend if in search_results view
     if (viewMode !== 'search_results') return;
 
+    const q = typeof overrideQuery === 'string' ? overrideQuery : searchQuery;
     setLoading(true);
+    setSearchError(null);
+
     try {
       let minP: number | undefined = undefined;
       let maxP: number | undefined = undefined;
@@ -136,7 +140,7 @@ const MainApp: React.FC = () => {
       }
 
       const results = await api.search({
-        q: searchQuery,
+        q: q.trim(),
         city: location.city,
         area: location.area,
         pincode: location.pincode,
@@ -149,16 +153,20 @@ const MainApp: React.FC = () => {
         membership: hasMembership
       });
       setProducts(results);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.warn('Search query error:', err);
+      setSearchError(err?.message || 'Comparison server is currently unreachable. Please retry.');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   }, [viewMode, searchQuery, location, category, dietary, priceRange, platform, sortBy, hasMembership]);
 
   useEffect(() => {
-    executeSearch();
-  }, [executeSearch]);
+    if (viewMode === 'search_results') {
+      executeSearch();
+    }
+  }, [viewMode, executeSearch]);
 
   const handleToggleFavorite = async (id: string) => {
     if (!user) {
@@ -185,13 +193,32 @@ const MainApp: React.FC = () => {
   };
 
   const handleStartComparing = () => {
-    if (viewMode === 'search_results') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    if (viewMode === 'home') {
+      const searchInput = document.querySelector('.luxury-search-input') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        searchInput.focus();
+        searchInput.style.boxShadow = '0 0 24px rgba(212, 175, 55, 0.7)';
+        setTimeout(() => { searchInput.style.boxShadow = ''; }, 1800);
+        return;
+      }
     }
-    setSearchQuery('Biryani');
-    setViewMode('search_results');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (viewMode === 'search_results') {
+      const inPageInput = document.querySelector('.search-input') as HTMLInputElement;
+      if (inPageInput) {
+        inPageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        inPageInput.focus();
+        return;
+      }
+    }
+    setViewMode('home');
+    setTimeout(() => {
+      const searchInput = document.querySelector('.luxury-search-input') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        searchInput.focus();
+      }
+    }, 100);
   };
 
   const handleOpenDashboardTab = (tab?: 'favorites' | 'alerts') => {
@@ -298,7 +325,15 @@ const MainApp: React.FC = () => {
 
             {/* Search Input In-Page */}
             <div className="search-container" style={{ maxWidth: 840, margin: '0 0 24px 0' }}>
-              <div className="search-input-wrapper" style={{ borderColor: 'var(--border-glass)' }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!searchQuery.trim()) return;
+                  executeSearch(searchQuery.trim());
+                }}
+                className="search-input-wrapper"
+                style={{ borderColor: 'var(--border-glass)' }}
+              >
                 <Search size={18} color="var(--accent-gold)" />
                 <input
                   type="text"
@@ -306,16 +341,17 @@ const MainApp: React.FC = () => {
                   placeholder="Search another dish or restaurant (e.g. Empire, Dosa, Burger)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={loading}
                 />
                 <button
-                  type="button"
+                  type="submit"
                   className="btn-gold"
-                  style={{ padding: '7px 18px', fontSize: '0.84rem' }}
-                  onClick={executeSearch}
+                  style={{ padding: '7px 18px', fontSize: '0.84rem', opacity: loading ? 0.7 : 1 }}
+                  disabled={loading}
                 >
-                  Search
+                  {loading ? 'Searching...' : 'Search'}
                 </button>
-              </div>
+              </form>
             </div>
 
             {/* Filter & Sort Controls */}
@@ -332,29 +368,87 @@ const MainApp: React.FC = () => {
               onSortByChange={setSortBy}
             />
 
-            {/* Results Grid */}
+            {/* Result count & active location badge */}
+            {!loading && !searchError && products.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 16px 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                <span>Showing <strong>{products.length}</strong> verified comparison {products.length === 1 ? 'item' : 'items'}</span>
+                <span>Delivering to <strong>{location.area}</strong></span>
+              </div>
+            )}
+
+            {/* Results Grid / Loading / Error / Empty States */}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>Calculating live multi-platform prices...</div>
-                <div style={{ fontSize: '0.85rem', marginTop: 6 }}>Checking restaurant branches in {location.area}...</div>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: '3px solid var(--border-glass)',
+                  borderTopColor: 'var(--accent-gold)',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 16px'
+                }} />
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Comparing platform prices...</div>
+                <div style={{ fontSize: '0.85rem', marginTop: 6, color: 'var(--text-secondary)' }}>Checking live restaurant branches in {location.area}...</div>
+              </div>
+            ) : searchError ? (
+              <div className="glass-panel heritage-frame" style={{ textAlign: 'center', padding: '40px 20px', maxWidth: 540, margin: '20px auto' }}>
+                <AlertCircle size={40} color="#e58e7b" style={{ margin: '0 auto 12px' }} />
+                <h3 className="font-heritage" style={{ fontSize: '1.25rem', marginBottom: 8, color: '#e58e7b' }}>Connection Notice</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+                  {searchError}
+                </p>
+                <button
+                  type="button"
+                  className="btn-gold"
+                  onClick={() => executeSearch()}
+                >
+                  Retry Search
+                </button>
               </div>
             ) : products.length === 0 ? (
               <div className="glass-panel heritage-frame" style={{ textAlign: 'center', padding: '50px 20px', maxWidth: 540, margin: '20px auto' }}>
                 <AlertCircle size={44} color="var(--accent-gold)" style={{ margin: '0 auto 12px' }} />
-                <h3 className="font-heritage" style={{ fontSize: '1.3rem', marginBottom: 8 }}>No matching food items found</h3>
+                <h3 className="font-heritage" style={{ fontSize: '1.3rem', marginBottom: 8 }}>
+                  {!searchQuery.trim() ? "Search Food Comparisons" : "No matching food items found"}
+                </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
-                  We couldn't find items for <strong>"{searchQuery}"</strong> delivering to {location.area}. Try searching for "Chicken Biryani", "Empire", or change delivery location.
+                  {!searchQuery.trim() ? (
+                    `Enter a dish name above or choose from popular dishes below to compare live prices in ${location.area}.`
+                  ) : (
+                    <>We couldn't find items for <strong>"{searchQuery}"</strong> delivering to {location.area}. Try searching for "Chicken Biryani", "Empire", or change delivery location.</>
+                  )}
                 </p>
-                <button
-                  className="btn-gold"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setCategory('All');
-                    setDietary('all');
-                  }}
-                >
-                  Reset Filters
-                </button>
+                {!searchQuery.trim() ? (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 12 }}>
+                    {['Chicken Biryani', 'Empire Special', 'Butter Chicken', 'Masala Dosa', 'Burgers'].map(dish => (
+                      <button
+                        key={dish}
+                        type="button"
+                        className="chip-btn active"
+                        onClick={() => {
+                          setSearchQuery(dish);
+                          executeSearch(dish);
+                        }}
+                      >
+                        {dish}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-gold"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCategory('All');
+                      setDietary('all');
+                      executeSearch('');
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
               </div>
             ) : (
               <div className="products-grid">

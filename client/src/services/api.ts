@@ -1,11 +1,23 @@
 import type { SearchProductItem, ComparisonData, User, PriceAlert, FavoriteItem, Platform } from '../types';
 
-const API_BASE = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:3001/api';
+export function getApiBaseUrl(): string {
+  if (import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3001/api';
+    }
+    // In production on Vercel, use same-origin /api path (proxied by vercel.json)
+    return `${window.location.origin}/api`;
+  }
+  return 'http://localhost:3001/api';
+}
 
 /**
- * Robust fetch wrapper with automatic timeout and abort handling
+ * Robust fetch wrapper with automatic timeout, error categorization, and abort handling
  */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 8000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -17,7 +29,10 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     return response;
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error('Request timed out. The server took too long to respond.');
+      throw new Error('Comparison request timed out. The server took too long to respond.');
+    }
+    if (error.message && error.message.includes('Failed to fetch')) {
+      throw new Error('Unable to reach FoodCompare server. Please verify your connection.');
     }
     throw error;
   } finally {
@@ -34,7 +49,10 @@ function getAuthHeader(): Record<string, string> {
   }
 }
 
+const API_BASE = getApiBaseUrl();
+
 export const api = {
+  getBaseUrl: () => getApiBaseUrl(),
   // Service health check
   checkHealth: async (): Promise<{ ok: boolean; message?: string }> => {
     try {
