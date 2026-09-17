@@ -122,11 +122,21 @@ const MainApp: React.FC = () => {
   }, [user]);
 
   // Execute search API query
-  const executeSearch = useCallback(async (overrideQuery?: string) => {
+  const executeSearch = useCallback(async (overrideQuery?: string, overrideCategory?: string) => {
     // Only query backend if in search_results view
     if (viewMode !== 'search_results') return;
 
     const q = typeof overrideQuery === 'string' ? overrideQuery : searchQuery;
+    const cat = typeof overrideCategory === 'string' ? overrideCategory : category;
+
+    // Do NOT fire API request if query is empty AND category is 'All'
+    if (!q.trim() && cat === 'All') {
+      setProducts([]);
+      setLoading(false);
+      setSearchError(null);
+      return;
+    }
+
     setLoading(true);
     setSearchError(null);
 
@@ -144,7 +154,7 @@ const MainApp: React.FC = () => {
         city: location.city,
         area: location.area,
         pincode: location.pincode,
-        category: category !== 'All' ? category : undefined,
+        category: cat !== 'All' ? cat : undefined,
         vegetarian: dietary === 'veg' ? true : dietary === 'non-veg' ? false : undefined,
         minPrice: minP,
         maxPrice: maxP,
@@ -186,8 +196,9 @@ const MainApp: React.FC = () => {
   };
 
   const handleSelectCategory = (cat: string) => {
-    setCategory(cat);
-    setSearchQuery(cat);
+    // Toggle category; DO NOT overwrite searchQuery with cat!
+    const newCat = category === cat ? 'All' : cat;
+    setCategory(newCat);
     setViewMode('search_results');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -316,7 +327,13 @@ const MainApp: React.FC = () => {
             {/* Results Title & Search Modification Bar */}
             <div style={{ marginBottom: 24 }}>
               <h2 className="font-heritage" style={{ fontSize: 'clamp(1.6rem, 3.2vw, 2.4rem)', marginBottom: 8 }}>
-                {searchQuery ? `Comparisons for "${searchQuery}"` : `Available Food Comparisons`}
+                {searchQuery && category !== 'All'
+                  ? `Comparisons for "${searchQuery}" in ${category}`
+                  : searchQuery
+                  ? `Comparisons for "${searchQuery}"`
+                  : category !== 'All'
+                  ? `${category} Comparisons`
+                  : `Search Food Comparisons`}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
                 Transparent pricing comparison across Zomato, Swiggy, EatClub & direct ordering.
@@ -410,16 +427,22 @@ const MainApp: React.FC = () => {
               <div className="glass-panel heritage-frame" style={{ textAlign: 'center', padding: '50px 20px', maxWidth: 540, margin: '20px auto' }}>
                 <AlertCircle size={44} color="var(--accent-gold)" style={{ margin: '0 auto 12px' }} />
                 <h3 className="font-heritage" style={{ fontSize: '1.3rem', marginBottom: 8 }}>
-                  {!searchQuery.trim() ? "Search Food Comparisons" : "No matching food items found"}
+                  {!searchQuery.trim() && category === 'All'
+                    ? "Search Food Comparisons"
+                    : "No matching food items found"}
                 </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
-                  {!searchQuery.trim() ? (
+                  {!searchQuery.trim() && category === 'All' ? (
                     `Enter a dish name above or choose from popular dishes below to compare live prices in ${location.area}.`
-                  ) : (
+                  ) : searchQuery.trim() && category !== 'All' ? (
+                    <>We couldn't find <strong>"{searchQuery}"</strong> in the <strong>"{category}"</strong> category delivering to {location.area}. Try clearing filters or searching across all categories.</>
+                  ) : searchQuery.trim() ? (
                     <>We couldn't find items for <strong>"{searchQuery}"</strong> delivering to {location.area}. Try searching for "Chicken Biryani", "Empire", or change delivery location.</>
+                  ) : (
+                    <>No items currently available in the <strong>"{category}"</strong> category delivering to {location.area}. Try selecting another cuisine or area.</>
                   )}
                 </p>
-                {!searchQuery.trim() ? (
+                {!searchQuery.trim() && category === 'All' ? (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 12 }}>
                     {['Chicken Biryani', 'Empire Special', 'Butter Chicken', 'Masala Dosa', 'Burgers'].map(dish => (
                       <button
@@ -443,7 +466,8 @@ const MainApp: React.FC = () => {
                       setSearchQuery('');
                       setCategory('All');
                       setDietary('all');
-                      executeSearch('');
+                      setPlatform('');
+                      setPriceRange('');
                     }}
                   >
                     Reset Filters

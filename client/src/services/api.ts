@@ -69,7 +69,7 @@ export const api = {
     }
   },
 
-  // Search
+  // Search using standardized contract POST /api/compare/search (fallback to GET /api/search)
   search: async (params: {
     q?: string;
     city?: string;
@@ -84,14 +84,59 @@ export const api = {
     sortBy?: string;
     membership?: boolean;
   }): Promise<SearchProductItem[]> => {
+    const payload = {
+      query: (params.q || '').trim(),
+      category: params.category && params.category !== 'All' ? params.category : null,
+      location: {
+        name: params.area || '',
+        city: params.city || 'Bangalore',
+        pincode: params.pincode || ''
+      },
+      platforms: params.platform ? [params.platform] : ['swiggy', 'zomato', 'eatclub', 'direct'],
+      vegOnly: params.vegetarian === true,
+      nonVegOnly: params.vegetarian === false,
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+      sortBy: params.sortBy,
+      membership: Boolean(params.membership)
+    };
+
+    // Try POST /api/compare/search first
     try {
+      const res = await fetchWithTimeout(
+        `${API_BASE}/compare/search`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify(payload)
+        },
+        10000
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.data || [];
+      }
+      // If 404/405, fallback to GET /api/search
+      if (res.status === 404 || res.status === 405) {
+        throw new Error('FALLBACK_GET');
+      }
+      throw new Error(`Search request failed with status ${res.status}`);
+    } catch (err: any) {
+      if (err?.message !== 'FALLBACK_GET' && err?.name !== 'TypeError') {
+        throw err;
+      }
+      // Fallback: GET /api/search with query parameters
       const query = new URLSearchParams();
-      if (params.q) query.append('q', params.q);
+      if (payload.query) query.append('q', payload.query);
       if (params.city) query.append('city', params.city);
       if (params.area) query.append('area', params.area);
       if (params.pincode) query.append('pincode', params.pincode);
       if (params.cuisine) query.append('cuisine', params.cuisine);
-      if (params.category) query.append('category', params.category);
+      if (payload.category) query.append('category', payload.category);
       if (params.vegetarian !== undefined) query.append('vegetarian', String(params.vegetarian));
       if (params.minPrice !== undefined) query.append('minPrice', String(params.minPrice));
       if (params.maxPrice !== undefined) query.append('maxPrice', String(params.maxPrice));
@@ -105,9 +150,6 @@ export const api = {
       }
       const data = await res.json();
       return data.data || [];
-    } catch (err) {
-      console.warn('Search query warning:', err);
-      return [];
     }
   },
 

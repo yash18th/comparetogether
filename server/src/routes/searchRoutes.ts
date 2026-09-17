@@ -63,4 +63,65 @@ router.get('/', (req, res) => {
   }
 });
 
+router.post('/', (req, res) => {
+  try {
+    const {
+      query,
+      q,
+      category,
+      location,
+      area,
+      city,
+      pincode,
+      platforms,
+      platform,
+      vegOnly,
+      nonVegOnly,
+      vegetarian,
+      minPrice,
+      maxPrice,
+      sortBy,
+      membership,
+      userId: bodyUserId
+    } = req.body || {};
+
+    const userId = bodyUserId || (req.headers['x-user-id'] as string) || 'default_user';
+    const searchQuery = (query ?? q ?? '').toString().trim();
+    const locArea = (location?.name || area || '').toString().trim();
+    const locCity = (location?.city || city || 'Bangalore').toString().trim();
+    const locPincode = (location?.pincode || pincode || '').toString().trim();
+
+    let isVeg: boolean | undefined = undefined;
+    if (vegOnly === true) isVeg = true;
+    else if (nonVegOnly === true) isVeg = false;
+    else if (vegetarian !== undefined) isVeg = Boolean(vegetarian);
+
+    const platformCode = platform || (Array.isArray(platforms) && platforms.length === 1 ? platforms[0] : undefined);
+
+    const results = SearchEngine.search({
+      query: searchQuery,
+      category: category && category !== 'All' ? category : undefined,
+      city: locCity,
+      area: locArea,
+      pincode: locPincode,
+      vegetarian: isVeg,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      platform: platformCode,
+      sortBy: sortBy as any,
+      hasMembership: Boolean(membership),
+      userId
+    });
+
+    res.json({
+      success: true,
+      count: results.length,
+      data: results
+    });
+  } catch (error: any) {
+    console.error('Search POST error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+});
+
 export default router;
