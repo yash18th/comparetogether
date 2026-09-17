@@ -15,6 +15,7 @@ export interface SearchParams {
   platform?: string;
   sortBy?: 'final_price_asc' | 'item_price_asc' | 'discount_desc' | 'fastest' | 'rating';
   hasMembership?: boolean;
+  userId?: string;
 }
 
 export class SearchEngine {
@@ -156,25 +157,43 @@ export class SearchEngine {
       WHERE pp.product_id = ?
     `);
 
-    // Swiggy connection status check
-    const swiggyStatus = SwiggyMcpClient.getInstance().getStatus();
+    // Platform connection and authorization checks
+    const swiggyStatus = SwiggyMcpClient.getInstance().getStatus(params.userId);
     const isSwiggyConnected = swiggyStatus.connected && swiggyStatus.status === 'AUTHORIZED';
+    const isZomatoAuthorized = Boolean(process.env.ZOMATO_API_KEY && process.env.ZOMATO_API_KEY.trim().length > 0);
 
     const enrichedResults = results.map(item => {
       const prices = (getPricesStmt.all(item.product_id) as any[]).map(p => {
         const isSwiggy = p.platform_code === 'swiggy';
-        const finalPriceUnavailable = isSwiggy ? !isSwiggyConnected : false;
-        const dataProvenance = isSwiggy ? (isSwiggyConnected ? 'AUTHORIZED' : 'INTEGRATION_PENDING') : 'AUTHORIZED';
+        const isZomato = p.platform_code === 'zomato';
 
-        // Recalculate if user enabled membership (e.g. Swiggy One or Zomato Gold)
+        let finalPriceUnavailable = false;
+        let dataProvenance: 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' = 'AUTHORIZED';
+
+        if (isSwiggy) {
+          finalPriceUnavailable = !isSwiggyConnected;
+          dataProvenance = isSwiggyConnected ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+        } else if (isZomato) {
+          finalPriceUnavailable = !isZomatoAuthorized;
+          dataProvenance = isZomatoAuthorized ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+        }
+
+        // Recalculate only if user enabled membership AND platform is authorized
         let finalPrice = p.final_price;
         let membershipApplied = false;
         let activeMembershipDiscount = 0;
 
         if (params.hasMembership && !finalPriceUnavailable) {
-          if (p.platform_code === 'swiggy' || p.platform_code === 'zomato') {
-            // Free delivery + extra 10% off
+          if (isSwiggy && isSwiggyConnected) {
             activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
+            finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+            membershipApplied = true;
+          } else if (isZomato && isZomatoAuthorized) {
+            activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
+            finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+            membershipApplied = true;
+          } else if (p.platform_code === 'eatclub') {
+            activeMembershipDiscount = p.membership_discount || 0;
             finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
             membershipApplied = true;
           }

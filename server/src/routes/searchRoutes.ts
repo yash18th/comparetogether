@@ -18,8 +18,11 @@ router.get('/', (req, res) => {
       maxPrice,
       platform,
       sortBy,
-      membership
+      membership,
+      userId: queryUserId
     } = req.query;
+
+    const userId = (queryUserId as string) || (req.headers['x-user-id'] as string) || 'default_user';
 
     const results = SearchEngine.search({
       query: q as string,
@@ -33,7 +36,8 @@ router.get('/', (req, res) => {
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       platform: platform as string,
       sortBy: sortBy as any,
-      hasMembership: membership === 'true'
+      hasMembership: membership === 'true',
+      userId
     });
 
     // Record search history if user query is present

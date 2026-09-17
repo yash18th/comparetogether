@@ -23,48 +23,58 @@ export interface MatchResult {
 }
 
 export class ProductMatcher {
+  public static readonly MATCH_THRESHOLD = 0.85;
+  public static readonly REVIEW_THRESHOLD = 0.60;
+
   private static STOP_WORDS = new Set([
     'special', 'deluxe', 'classic', 'chef', 'signature', 'authentic', 'traditional',
     'fresh', 'hot', 'style', 'plate', 'portion', 'best', 'original', 'tasty', 'delicious',
     'served', 'with', 'and', '&', 'the', 'a', 'an', 'in', 'of', 'for'
   ]);
 
-  private static SYNONYMS: Record<string, string> = {
+  // Pure spelling variations only — NEVER culinary style or dish type replacements!
+  private static SPELLING_SYNONYMS: Record<string, string> = {
     'biriyani': 'biryani',
     'briyani': 'biryani',
-    'dum biryani': 'biryani',
-    'hyderabadi biryani': 'biryani',
-    'pulao': 'pilaf',
-    'dosa': 'dosai',
-    'roti': 'chapati',
     'chiken': 'chicken',
     'chickn': 'chicken',
-    'paneer': 'cottage cheese',
-    'fries': 'french fries'
+    'dosa': 'dosai',
+    'roti': 'chapati',
+    'paneer': 'cottage cheese'
   };
 
+  // Distinct preparation styles that MUST NOT be conflated
+  private static PREPARATION_STYLES = [
+    'dum', 'hyderabadi', 'kacchi', 'fry', 'donne', 'roast', 'chettinad',
+    'lucknowi', 'malabar', 'ambur', 'tandoori', 'tikka', 'butter masala',
+    'kadai', 'handi', 'peri peri', 'masala', 'plain'
+  ];
+
+  // Variant modifiers that indicate different packaging or portioning tiers
+  private static VARIANT_MODIFIERS = [
+    'half', 'full', 'regular', 'large', 'small', 'boneless', 'with bone',
+    'single', 'double', 'family', 'bucket', 'mini', 'jumbo'
+  ];
+
   /**
-   * Cleans, stems, and extracts significant tokens from an item name
+   * Cleans and tokenizes text without conflating cooking styles
    */
   public static tokenize(text: string): string[] {
     let cleaned = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
-    
-    // Apply synonym replacements
-    for (const [variant, standard] of Object.entries(ProductMatcher.SYNONYMS)) {
-      if (cleaned.includes(variant)) {
-        cleaned = cleaned.replace(new RegExp(`\\b${variant}\\b`, 'g'), standard);
-      }
+
+    for (const [variant, standard] of Object.entries(ProductMatcher.SPELLING_SYNONYMS)) {
+      cleaned = cleaned.replace(new RegExp(`\\b${variant}\\b`, 'g'), standard);
     }
 
     const tokens = cleaned
       .split(/\s+/)
       .filter(t => t.length > 1 && !ProductMatcher.STOP_WORDS.has(t));
-    
+
     return Array.from(new Set(tokens));
   }
 
   /**
-   * Calculates Sørensen–Dice coefficient on character bigrams (typo tolerance)
+   * Calculates Sørensen–Dice coefficient on character bigrams for typo tolerance
    */
   public static diceCoefficient(str1: string, str2: string): number {
     const s1 = str1.toLowerCase().replace(/\s+/g, '');
@@ -95,7 +105,7 @@ export class ProductMatcher {
   }
 
   /**
-   * Compares two product candidates and generates a match confidence score
+   * Conservative comparison between two product candidates
    */
   public static compare(source: MatchCandidate, target: MatchCandidate): MatchResult {
     const reasons: string[] = [];
@@ -111,7 +121,12 @@ export class ProductMatcher {
       };
     }
 
-    // HARD CONSTRAINT 2: Dietary mismatch (Veg vs Non-Veg is strictly incompatible)
+    // HARD CONSTRAINT 2: Restaurant Identity Isolation (within same restaurant chain)
+    if (source.restaurantId && target.restaurantId && source.restaurantId !== target.restaurantId) {
+      reasons.push(`Cross-restaurant comparison: ${source.restaurantId} vs ${target.restaurantId}`);
+    }
+
+    // HARD CONSTRAINT 3: Dietary mismatch (Veg vs Non-Veg is strictly incompatible)
     if (source.vegetarian !== target.vegetarian) {
       return {
         confidence: 0.0,
@@ -122,36 +137,61 @@ export class ProductMatcher {
       };
     }
 
+    const lowerSource = source.name.toLowerCase();
+    const lowerTarget = target.name.toLowerCase();
+
+    // Preparation style check (e.g. "Dum" vs "Hyderabadi" vs plain "Biryani")
+    let preparationMismatch = false;
+    for (const style of ProductMatcher.PREPARATION_STYLES) {
+      const sHas = lowerSource.includes(style);
+      const tHas = lowerTarget.includes(style);
+      if (sHas !== tHas) {
+        preparationMismatch = true;
+        reasons.push(`Distinct preparation style detected: "${style}" present in only one dish`);
+      }
+    }
+
+    // Variant modifier check (e.g. Half vs Full, Boneless vs With Bone)
+    let variantMismatch = false;
+    for (const vm of ProductMatcher.VARIANT_MODIFIERS) {
+      const sHas = lowerSource.includes(vm);
+      const tHas = lowerTarget.includes(vm);
+      if (sHas !== tHas) {
+        variantMismatch = true;
+        reasons.push(`Variant mismatch detected: "${vm}" only in one item`);
+      }
+    }
+
     // Token analysis
     const sourceTokens = ProductMatcher.tokenize(source.name);
     const targetTokens = ProductMatcher.tokenize(target.name);
     const matchedTokens = sourceTokens.filter(t => targetTokens.includes(t));
 
-    // Jaccard similarity of keywords
+    // Jaccard similarity
     const unionTokens = new Set([...sourceTokens, ...targetTokens]);
     const jaccardScore = unionTokens.size > 0 ? matchedTokens.length / unionTokens.size : 0;
-
-    // String Dice similarity (handles minor typos)
     const diceScore = ProductMatcher.diceCoefficient(source.name, target.name);
 
-    // Weighted Name Score
-    let nameScore = (jaccardScore * 0.6) + (diceScore * 0.4);
+    let nameScore = (jaccardScore * 0.5) + (diceScore * 0.5);
 
-    // Core keyword bonus: if all primary tokens of the shorter name are in the longer name
-    const minTokens = Math.min(sourceTokens.length, targetTokens.length);
-    if (minTokens > 0 && matchedTokens.length === minTokens) {
-      nameScore = Math.min(1.0, nameScore + 0.20);
-      reasons.push('Key dish noun phrase fully contained');
+    // Penalize preparation mismatches heavily to prevent improper merging
+    if (preparationMismatch) {
+      nameScore -= 0.35;
+    }
+
+    // Penalize variant mismatches heavily
+    if (variantMismatch) {
+      nameScore -= 0.35;
     }
 
     // Category check
     let categoryBonus = 0;
     if (source.category && target.category) {
       if (source.category.toLowerCase() === target.category.toLowerCase()) {
-        categoryBonus = 0.10;
+        categoryBonus = 0.05;
         reasons.push(`Category matches: ${source.category}`);
       } else {
-        nameScore -= 0.15;
+        nameScore -= 0.20;
         reasons.push(`Category mismatch: ${source.category} vs ${target.category}`);
       }
     }
@@ -160,32 +200,19 @@ export class ProductMatcher {
     let portionPenalty = 0;
     if (source.portionSize && target.portionSize) {
       const ratio = source.portionSize / target.portionSize;
-      if (ratio < 0.65 || ratio > 1.55) {
-        portionPenalty = 0.30;
+      if (ratio < 0.70 || ratio > 1.40) {
+        portionPenalty = 0.35;
         reasons.push(`Significant portion size disparity: ${source.portionSize}g vs ${target.portionSize}g`);
       } else {
         reasons.push(`Portion sizes are compatible (${source.portionSize}g vs ${target.portionSize}g)`);
       }
     }
 
-    // Variant compatibility (e.g. Half vs Full, Boneless vs Bone-in)
-    const lowerSource = source.name.toLowerCase();
-    const lowerTarget = target.name.toLowerCase();
-    const variantKeywords = ['half', 'full', 'regular', 'large', 'boneless', 'with bone', 'single', 'double'];
-    for (const vk of variantKeywords) {
-      const sHas = lowerSource.includes(vk);
-      const tHas = lowerTarget.includes(vk);
-      if (sHas !== tHas) {
-        nameScore -= 0.35;
-        reasons.push(`Variant mismatch detected: "${vk}" only in one item`);
-      }
-    }
-
     const finalConfidence = Math.max(0.0, Math.min(1.0, nameScore + categoryBonus - portionPenalty));
     const roundedConfidence = Math.round(finalConfidence * 100) / 100;
 
-    const isMatch = roundedConfidence >= 0.82;
-    const needsReview = roundedConfidence >= 0.55 && roundedConfidence < 0.82;
+    const isMatch = roundedConfidence >= ProductMatcher.MATCH_THRESHOLD;
+    const needsReview = roundedConfidence >= ProductMatcher.REVIEW_THRESHOLD && roundedConfidence < ProductMatcher.MATCH_THRESHOLD;
 
     return {
       confidence: roundedConfidence,

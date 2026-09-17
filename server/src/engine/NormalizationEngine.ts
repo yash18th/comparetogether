@@ -1,4 +1,4 @@
-import { NormalizedPricing } from '../adapters/PlatformAdapter.js';
+import { NormalizedPricing, NormalizedPlatformProduct } from '../adapters/PlatformAdapter.js';
 
 export interface PortionMetric {
   portionSize: number;
@@ -21,12 +21,24 @@ export interface ComparedProductSummary {
     metricsByPlatform: Record<string, PortionMetric>;
   };
   prices: NormalizedPricing[];
+  normalizedProducts?: NormalizedPlatformProduct[];
   cheapestFinalPrice: number;
   cheapestPlatformCode: string;
   cheapestItemPrice: number;
   highestFinalPrice: number;
   maxSavings: number; // You save ₹X compared with the highest available total
   savingsText: string;
+  cartComparison?: {
+    itemPrice: Record<string, number>;
+    addons: Record<string, number>;
+    deliveryFee: Record<string, number | 'Unavailable'>;
+    platformFee: Record<string, number | 'Unavailable'>;
+    packagingFee: Record<string, number | 'Unavailable'>;
+    taxes: Record<string, number | 'Unavailable'>;
+    discounts: Record<string, number>;
+    potentialDiscounts: Record<string, string[]>;
+    finalPayable: Record<string, number | 'Unavailable'>;
+  };
 }
 
 export class NormalizationEngine {
@@ -41,9 +53,10 @@ export class NormalizationEngine {
     branchArea: string,
     portionSize: number | undefined,
     portionUnit: string | undefined,
-    prices: NormalizedPricing[]
+    prices: NormalizedPricing[],
+    normalizedProducts?: NormalizedPlatformProduct[]
   ): ComparedProductSummary {
-    if (prices.length === 0) {
+    if (prices.length === 0 && (!normalizedProducts || normalizedProducts.length === 0)) {
       return {
         productId,
         productName,
@@ -54,6 +67,7 @@ export class NormalizationEngine {
         portionUnit,
         portionComparison: undefined,
         prices: [],
+        normalizedProducts: [],
         cheapestFinalPrice: 0,
         cheapestPlatformCode: '',
         cheapestItemPrice: 0,
@@ -95,7 +109,9 @@ export class NormalizationEngine {
       ? `You save ₹${maxSavings} compared with the highest verified total.`
       : verifiedPrices.length >= 2
         ? 'Verified prices are identical across platforms.'
-        : 'Transparent item prices shown. Some platform checkout fees require live session.';
+        : verifiedPrices.length === 1
+          ? 'Transparent pricing shown for 1 platform. Other platforms pending checkout session.'
+          : 'Transparent item prices shown. Some platform checkout fees require live session.';
 
     // Portion calculations if portionSize is available and > 0
     let portionComparison = undefined;
@@ -105,8 +121,8 @@ export class NormalizationEngine {
       let cheapestPer100Platform = '';
 
       for (const p of validPrices) {
-        // Calculate per 100g using final payable price
-        const pricePer100 = Math.round((p.finalPrice / portionSize) * 100 * 10) / 10;
+        const basePrice = p.finalPrice > 0 && !p.finalPriceUnavailable ? p.finalPrice : p.itemPrice;
+        const pricePer100 = Math.round((basePrice / portionSize) * 100 * 10) / 10;
         metricsByPlatform[p.platformCode] = {
           portionSize,
           unit: portionUnit,
@@ -127,6 +143,45 @@ export class NormalizationEngine {
       };
     }
 
+    // Build Cart-Level comparison map
+    const cartComparison: ComparedProductSummary['cartComparison'] = {
+      itemPrice: {},
+      addons: {},
+      deliveryFee: {},
+      platformFee: {},
+      packagingFee: {},
+      taxes: {},
+      discounts: {},
+      potentialDiscounts: {},
+      finalPayable: {}
+    };
+
+    if (normalizedProducts && normalizedProducts.length > 0) {
+      for (const np of normalizedProducts) {
+        cartComparison.itemPrice[np.platformCode] = np.itemPrice;
+        cartComparison.addons[np.platformCode] = np.addonTotal;
+        cartComparison.deliveryFee[np.platformCode] = np.deliveryFee;
+        cartComparison.platformFee[np.platformCode] = np.platformFee;
+        cartComparison.packagingFee[np.platformCode] = np.packagingFee;
+        cartComparison.taxes[np.platformCode] = np.taxes;
+        cartComparison.discounts[np.platformCode] = np.discount + np.couponDiscount;
+        cartComparison.potentialDiscounts[np.platformCode] = np.potentialDiscounts || [];
+        cartComparison.finalPayable[np.platformCode] = np.finalPrice;
+      }
+    } else {
+      for (const p of validPrices) {
+        cartComparison.itemPrice[p.platformCode] = p.itemPrice;
+        cartComparison.addons[p.platformCode] = p.addons;
+        cartComparison.deliveryFee[p.platformCode] = p.finalPriceUnavailable ? 'Unavailable' : p.deliveryFee;
+        cartComparison.platformFee[p.platformCode] = p.finalPriceUnavailable ? 'Unavailable' : p.platformFee;
+        cartComparison.packagingFee[p.platformCode] = p.finalPriceUnavailable ? 'Unavailable' : p.packagingFee;
+        cartComparison.taxes[p.platformCode] = p.finalPriceUnavailable ? 'Unavailable' : p.taxes;
+        cartComparison.discounts[p.platformCode] = p.discount + (p.membershipApplied ? p.membershipDiscount : 0);
+        cartComparison.potentialDiscounts[p.platformCode] = [];
+        cartComparison.finalPayable[p.platformCode] = p.finalPriceUnavailable ? 'Unavailable' : p.finalPrice;
+      }
+    }
+
     return {
       productId,
       productName,
@@ -137,12 +192,14 @@ export class NormalizationEngine {
       portionUnit,
       portionComparison,
       prices: validPrices,
+      normalizedProducts,
       cheapestFinalPrice: cheapestFinal,
       cheapestPlatformCode: cheapestPlatform,
       cheapestItemPrice: cheapestItem,
       highestFinalPrice: highestFinal,
       maxSavings,
-      savingsText
+      savingsText,
+      cartComparison
     };
   }
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/database.js';
 import { NormalizationEngine } from '../engine/NormalizationEngine.js';
 import { SwiggyMcpClient } from '../services/SwiggyMcpClient.js';
+import { NormalizedPlatformProduct } from '../adapters/PlatformAdapter.js';
 
 const router = Router();
 
@@ -9,8 +10,9 @@ const router = Router();
 router.get('/:productId', (req, res) => {
   try {
     const { productId } = req.params;
-    const { membership } = req.query;
+    const { membership, userId: queryUserId } = req.query;
     const hasMembership = membership === 'true';
+    const userId = (queryUserId as string) || (req.headers['x-user-id'] as string) || 'default_user';
 
     // 1. Fetch product, branch, restaurant details
     const product = db.prepare(`
@@ -46,9 +48,12 @@ router.get('/:productId', (req, res) => {
       return res.status(404).json({ success: false, message: 'Food item not found' });
     }
 
-    // 2. Check Swiggy connection status
-    const swiggyStatus = SwiggyMcpClient.getInstance().getStatus();
+    // 2. Check Swiggy connection status for this user
+    const swiggyStatus = SwiggyMcpClient.getInstance().getStatus(userId);
     const isSwiggyConnected = swiggyStatus.connected && swiggyStatus.status === 'AUTHORIZED';
+
+    // Check Zomato API status
+    const isZomatoAuthorized = Boolean(process.env.ZOMATO_API_KEY && process.env.ZOMATO_API_KEY.trim().length > 0);
 
     // 3. Fetch platform prices
     const prices = (db.prepare(`
@@ -68,16 +73,47 @@ router.get('/:productId', (req, res) => {
       let activeMembershipDiscount = 0;
 
       const isSwiggy = p.platform_code === 'swiggy';
-      const dataProvenance = isSwiggy ? (isSwiggyConnected ? 'AUTHORIZED' : 'INTEGRATION_PENDING') : 'AUTHORIZED';
-      const finalPriceUnavailable = isSwiggy ? !isSwiggyConnected : false;
-      const unavailabilityReason = finalPriceUnavailable
-        ? 'Swiggy MCP integration pending. Final payable price unavailable without authorized session.'
-        : undefined;
+      const isZomato = p.platform_code === 'zomato';
 
-      if (hasMembership && (p.platform_code === 'swiggy' || p.platform_code === 'zomato') && !finalPriceUnavailable) {
-        activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
-        finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
-        membershipApplied = true;
+      let dataProvenance: 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' = 'AUTHORIZED';
+      let finalPriceUnavailable = false;
+      let unavailabilityReason: string | undefined = undefined;
+
+      if (isSwiggy) {
+        if (!isSwiggyConnected) {
+          dataProvenance = 'INTEGRATION_PENDING';
+          finalPriceUnavailable = true;
+          unavailabilityReason = 'Swiggy MCP integration pending. User OAuth 2.1 authorization required.';
+        } else {
+          dataProvenance = 'AUTHORIZED';
+          finalPriceUnavailable = false;
+        }
+      } else if (isZomato) {
+        if (!isZomatoAuthorized) {
+          dataProvenance = 'INTEGRATION_PENDING';
+          finalPriceUnavailable = true;
+          unavailabilityReason = 'Authorized Zomato API access required (ZOMATO_API_KEY missing). Integration pending merchant partner credentials.';
+        } else {
+          dataProvenance = 'AUTHORIZED';
+          finalPriceUnavailable = false;
+        }
+      }
+
+      // Membership discounts only apply if authorized platform connection establishes it
+      if (hasMembership && !finalPriceUnavailable) {
+        if (isSwiggy && isSwiggyConnected) {
+          activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
+          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          membershipApplied = true;
+        } else if (isZomato && isZomatoAuthorized) {
+          activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
+          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          membershipApplied = true;
+        } else if (p.platform_code === 'eatclub') {
+          activeMembershipDiscount = p.membership_discount || 0;
+          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          membershipApplied = true;
+        }
       }
 
       // Compute last updated minutes
@@ -96,6 +132,43 @@ router.get('/:productId', (req, res) => {
         last_updated_human: `${minutesAgo} minutes ago`
       };
     });
+
+    // Build standardized NormalizedPlatformProduct list
+    const normalizedProducts: NormalizedPlatformProduct[] = prices.map(p => ({
+      platform: p.platform_name,
+      platformId: p.platform_id,
+      platformCode: p.platform_code,
+      restaurantId: product.restaurant_id,
+      restaurantName: product.restaurant_name,
+      branchId: product.branch_id,
+      branchName: product.branch_name,
+      address: `${product.branch_address}, ${product.branch_city}`,
+      menuItemId: p.product_id,
+      itemName: product.product_name,
+      description: product.product_description,
+      category: product.category,
+      image: product.image,
+      portion: product.portion_size ? { size: product.portion_size, unit: product.portion_unit } : undefined,
+      variants: [],
+      addons: [],
+      availability: Boolean(p.availability),
+      itemPrice: p.item_price,
+      addonTotal: 0,
+      deliveryFee: p.final_price_unavailable ? 'Unavailable' : p.delivery_fee,
+      platformFee: p.final_price_unavailable ? 'Unavailable' : p.platform_fee,
+      packagingFee: p.final_price_unavailable ? 'Unavailable' : p.packaging_fee,
+      taxes: p.final_price_unavailable ? 'Unavailable' : p.taxes,
+      discount: p.discount,
+      couponDiscount: p.membership_applied ? p.active_membership_discount : 0,
+      potentialDiscounts: p.final_price_unavailable ? ['Promotional discounts verified upon live session'] : [],
+      subtotal: p.item_price,
+      finalPrice: p.final_price_unavailable ? 'Unavailable' : p.final_price,
+      currency: p.currency,
+      fetchedAt: p.updated_at,
+      dataStatus: p.data_provenance,
+      unavailabilityReason: p.unavailability_reason,
+      orderUrl: p.order_url
+    }));
 
     // 4. Normalized aggregation and portion metrics
     const comparisonSummary = NormalizationEngine.comparePlatforms(
@@ -130,10 +203,11 @@ router.get('/:productId', (req, res) => {
         sourceType: 'authorized_api',
         dataProvenance: p.data_provenance,
         lastUpdated: p.updated_at
-      }))
+      })),
+      normalizedProducts
     );
 
-    // 4. Fetch price history
+    // 5. Fetch price history
     const historyRows = db.prepare(`
       SELECT 
         ph.*,
@@ -148,9 +222,9 @@ router.get('/:productId', (req, res) => {
     // Calculate 30-day average
     const avg30Day = historyRows.length > 0
       ? Math.round(historyRows.reduce((acc, h) => acc + h.price, 0) / historyRows.length)
-      : comparisonSummary.cheapestFinalPrice;
+      : (comparisonSummary.cheapestFinalPrice || 0);
 
-    // 5. Product matches (confidence score records)
+    // 6. Product matches (confidence score records)
     const matches = db.prepare(`
       SELECT 
         pm.*,
@@ -161,7 +235,7 @@ router.get('/:productId', (req, res) => {
       WHERE pm.product_id = ?
     `).all(productId);
 
-    // 6. Other branches for this restaurant (Section 8)
+    // 7. Other branches for this restaurant
     const otherBranches = db.prepare(`
       SELECT 
         b.id AS branch_id,
@@ -178,6 +252,7 @@ router.get('/:productId', (req, res) => {
       data: {
         product,
         prices,
+        normalizedProducts,
         comparison: comparisonSummary,
         priceHistory: historyRows,
         averagePrice30d: avg30Day,

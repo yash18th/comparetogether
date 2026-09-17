@@ -52,13 +52,21 @@ async function runVerification() {
 
   // Test 4: Product Matching Engine
   console.log('\n4. Testing Product Matching Engine:');
-  // Match 1: Chicken Dum Biryani vs Chicken Biryani
+  // Match 1: Distinct preparation styles must NOT automatically merge
   const match1 = ProductMatcher.compare(
     { name: 'Chicken Dum Biryani', vegetarian: false, portionSize: 500, category: 'Biryani' },
     { name: 'Hyderabadi Chicken Biryani', vegetarian: false, portionSize: 500, category: 'Biryani' }
   );
   console.log(`- "Chicken Dum Biryani" vs "Hyderabadi Chicken Biryani": ${Math.round(match1.confidence * 100)}% Confidence (isMatch: ${match1.isMatch})`);
-  if (!match1.isMatch) throw new Error('Expected Biryani names to match');
+  if (match1.isMatch) throw new Error('Expected distinct preparation styles to NOT merge');
+
+  // Match 1b: Identical dish with minor platform wording difference SHOULD match
+  const match1b = ProductMatcher.compare(
+    { name: 'Empire Special Chicken Biryani', vegetarian: false, portionSize: 500, category: 'Biryani' },
+    { name: 'Empire Chicken Biryani', vegetarian: false, portionSize: 500, category: 'Biryani' }
+  );
+  console.log(`- "Empire Special Chicken Biryani" vs "Empire Chicken Biryani": ${Math.round(match1b.confidence * 100)}% Confidence (isMatch: ${match1b.isMatch})`);
+  if (!match1b.isMatch) throw new Error('Expected identical dish wording to match');
 
   // Match 2: Veg Biryani vs Chicken Biryani (Hard dietary mismatch)
   const match2 = ProductMatcher.compare(
@@ -73,8 +81,8 @@ async function runVerification() {
     { name: 'Chicken Biryani', vegetarian: false, portionSize: 500, category: 'Biryani' },
     { name: 'Chicken Biryani Family Pack', vegetarian: false, portionSize: 1200, category: 'Biryani' }
   );
-  console.log(`- Single vs Family pack disparity: ${Math.round(match3.confidence * 100)}% Confidence (needsReview: ${match3.needsReview})`);
-  if (!match3.needsReview) throw new Error('Portion disparity should flag for review');
+  console.log(`- Single vs Family pack disparity: ${Math.round(match3.confidence * 100)}% Confidence (isMatch: ${match3.isMatch})`);
+  if (match3.isMatch) throw new Error('Single vs Family pack should not auto-match');
 
   // Test 5: Platform Adapter Registry
   console.log('\n5. Testing Platform Adapter Registry:');

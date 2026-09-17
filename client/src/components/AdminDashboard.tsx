@@ -437,6 +437,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
               </div>
             </div>
 
+            {/* Official Zomato Enterprise Integration Banner */}
+            <div className="glass-panel" style={{
+              padding: 16,
+              marginBottom: 18,
+              border: '1px solid var(--border-glass)',
+              background: 'rgba(255, 255, 255, 0.02)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                  <img
+                    src="https://images.unsplash.com/photo-1526367790999-0150786686a2?w=80&h=80&fit=crop"
+                    alt="Zomato"
+                    style={{ width: 42, height: 42, borderRadius: 8 }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>Zomato Merchant Partner API</span>
+                      <span className="status-pill status-pending" style={{
+                        fontSize: '0.72rem',
+                        padding: '2px 8px',
+                        borderRadius: 9999,
+                        background: 'rgba(197, 160, 89, 0.2)',
+                        color: 'var(--accent-gold)'
+                      }}>
+                        ○ INTEGRATION PENDING
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      Authentication: <strong>Enterprise API Key (Server-Side)</strong> • Env: <code>ZOMATO_API_KEY</code> & <code>ZOMATO_BASE_URL</code>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                      Zomato restricts checkout quoting to approved POS/Merchant partners. Zero simulated prices are generated when keys are unconfigured.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '0.82rem', color: 'var(--accent-sandstone)', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: 6 }}>
+                  Server Environment Required
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
               {platforms.map(p => (
                 <div key={p.id} className="glass-panel" style={{ padding: 16 }}>

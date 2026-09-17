@@ -154,7 +154,8 @@ CREATE TABLE IF NOT EXISTS saved_comparisons (
 );
 
 CREATE TABLE IF NOT EXISTS oauth_sessions (
-  platform_code TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL DEFAULT 'default_user',
+  platform_code TEXT NOT NULL,
   access_token TEXT,
   refresh_token TEXT,
   token_type TEXT DEFAULT 'Bearer',
@@ -164,7 +165,8 @@ CREATE TABLE IF NOT EXISTS oauth_sessions (
   address_id TEXT,
   address_details TEXT,
   scope TEXT,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, platform_code)
 );
 
 -- Indices for performance and search

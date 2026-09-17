@@ -42,6 +42,7 @@ export interface SwiggyConnectionStatus {
   address: SwiggyAddress | null;
   expiresAt: string | null;
   lastUpdated: string | null;
+  requiresConfig?: boolean;
 }
 
 export class SwiggyMcpClient {
@@ -82,21 +83,21 @@ export class SwiggyMcpClient {
   }
 
   /**
-   * Generates an authorization URL for OAuth 2.1 with PKCE
+   * Generates an authorization URL for OAuth 2.1 with PKCE for a specific user
    */
-  public createAuthorizationUrl(): { authUrl: string; state: string } {
+  public createAuthorizationUrl(userId: string = 'default_user'): { authUrl: string; state: string } {
     const { codeVerifier, codeChallenge } = this.generatePkce();
     const state = crypto.randomBytes(16).toString('hex');
 
-    // Save pending state and code_verifier to oauth_sessions
+    // Save pending state and code_verifier to oauth_sessions tied to this user
     db.prepare(`
-      INSERT INTO oauth_sessions (platform_code, code_verifier, state, updated_at)
-      VALUES ('swiggy', ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(platform_code) DO UPDATE SET
+      INSERT INTO oauth_sessions (user_id, platform_code, code_verifier, state, updated_at)
+      VALUES (?, 'swiggy', ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, platform_code) DO UPDATE SET
         code_verifier = excluded.code_verifier,
         state = excluded.state,
         updated_at = CURRENT_TIMESTAMP
-    `).run(codeVerifier, state);
+    `).run(userId, codeVerifier, state);
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -115,14 +116,14 @@ export class SwiggyMcpClient {
   /**
    * Handles the OAuth 2.1 callback and exchanges the authorization code for an access token
    */
-  public async handleCallback(code: string, state: string): Promise<{ success: boolean; message: string }> {
+  public async handleCallback(code: string, state: string, userId: string = 'default_user'): Promise<{ success: boolean; message: string }> {
     if (!code || !state) {
       throw new Error('Authorization code and state are required');
     }
 
     const session = db.prepare(`
-      SELECT code_verifier, state FROM oauth_sessions WHERE platform_code = 'swiggy'
-    `).get() as any;
+      SELECT code_verifier, state FROM oauth_sessions WHERE user_id = ? AND platform_code = 'swiggy'
+    `).get(userId) as any;
 
     if (!session || !session.code_verifier) {
       throw new Error('No pending PKCE authorization session found for Swiggy');
@@ -181,12 +182,12 @@ export class SwiggyMcpClient {
           code_verifier = NULL,
           state = NULL,
           updated_at = CURRENT_TIMESTAMP
-        WHERE platform_code = 'swiggy'
-      `).run(accessToken, refreshToken, expiresAt);
+        WHERE user_id = ? AND platform_code = 'swiggy'
+      `).run(accessToken, refreshToken, expiresAt, userId);
 
-      // Perform mandatory first step: fetch real address from Swiggy
+      // Fetch primary address using official get_addresses
       try {
-        await this.syncPrimaryAddress();
+        await this.syncPrimaryAddress(userId);
       } catch (addrErr) {
         console.warn('Initial address sync warning after OAuth:', addrErr);
       }
@@ -200,14 +201,72 @@ export class SwiggyMcpClient {
   }
 
   /**
-   * Retrieves active session details (never exposes tokens)
+   * Refreshes an expired access token using the stored refresh token
    */
-  public getStatus(): SwiggyConnectionStatus {
+  public async refreshAccessToken(userId: string = 'default_user'): Promise<string | null> {
     const session = db.prepare(`
-      SELECT platform_code, access_token, expires_at, address_id, address_details, updated_at
+      SELECT refresh_token FROM oauth_sessions WHERE user_id = ? AND platform_code = 'swiggy'
+    `).get(userId) as any;
+
+    if (!session || !session.refresh_token) {
+      return null;
+    }
+
+    const tokenUrl = `${this.baseUrl}/auth/token`;
+    const bodyParams = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: session.refresh_token,
+      client_id: this.clientId
+    });
+
+    if (this.clientSecret) {
+      bodyParams.append('client_secret', this.clientSecret);
+    }
+
+    try {
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: bodyParams.toString()
+      });
+
+      if (!response.ok) return null;
+
+      const tokenData = await response.json();
+      const newAccessToken = tokenData.access_token;
+      const newRefreshToken = tokenData.refresh_token || session.refresh_token;
+      const expiresIn = tokenData.expires_in || 3600;
+      const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+      db.prepare(`
+        UPDATE oauth_sessions SET
+          access_token = ?,
+          refresh_token = ?,
+          expires_at = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND platform_code = 'swiggy'
+      `).run(newAccessToken, newRefreshToken, expiresAt, userId);
+
+      return newAccessToken;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves active session details (never exposes tokens to client)
+   */
+  public getStatus(userId: string = 'default_user'): SwiggyConnectionStatus {
+    const hasConfig = Boolean(process.env.SWIGGY_CLIENT_ID && process.env.SWIGGY_CLIENT_ID !== 'foodcompare-dev-client');
+
+    const session = db.prepare(`
+      SELECT platform_code, access_token, refresh_token, expires_at, address_id, address_details, updated_at
       FROM oauth_sessions
-      WHERE platform_code = 'swiggy'
-    `).get() as any;
+      WHERE user_id = ? AND platform_code = 'swiggy'
+    `).get(userId) as any;
 
     if (!session || !session.access_token) {
       return {
@@ -215,7 +274,8 @@ export class SwiggyMcpClient {
         status: 'INTEGRATION_PENDING',
         address: null,
         expiresAt: null,
-        lastUpdated: null
+        lastUpdated: null,
+        requiresConfig: !hasConfig
       };
     }
 
@@ -226,7 +286,8 @@ export class SwiggyMcpClient {
         status: 'EXPIRED',
         address: null,
         expiresAt: session.expires_at,
-        lastUpdated: session.updated_at
+        lastUpdated: session.updated_at,
+        requiresConfig: !hasConfig
       };
     }
 
@@ -244,34 +305,42 @@ export class SwiggyMcpClient {
       status: 'AUTHORIZED',
       address: parsedAddress,
       expiresAt: session.expires_at,
-      lastUpdated: session.updated_at
+      lastUpdated: session.updated_at,
+      requiresConfig: !hasConfig
     };
   }
 
   /**
-   * Disconnects Swiggy session and revokes server-side tokens
+   * Disconnects Swiggy session and revokes server-side tokens for the user
    */
-  public disconnect(): { success: boolean } {
+  public disconnect(userId: string = 'default_user'): { success: boolean } {
     db.prepare(`
-      DELETE FROM oauth_sessions WHERE platform_code = 'swiggy'
-    `).run();
+      DELETE FROM oauth_sessions WHERE user_id = ? AND platform_code = 'swiggy'
+    `).run(userId);
     return { success: true };
   }
 
   /**
    * Executes an MCP JSON-RPC tool call against Swiggy Food MCP
    */
-  public async callMcpTool<T = any>(toolName: string, args: Record<string, any> = {}): Promise<T> {
+  public async callMcpTool<T = any>(toolName: string, args: Record<string, any> = {}, userId: string = 'default_user'): Promise<T> {
     const session = db.prepare(`
-      SELECT access_token, expires_at FROM oauth_sessions WHERE platform_code = 'swiggy'
-    `).get() as any;
+      SELECT access_token, expires_at FROM oauth_sessions WHERE user_id = ? AND platform_code = 'swiggy'
+    `).get(userId) as any;
 
     if (!session || !session.access_token) {
       throw new Error('Swiggy MCP is not authenticated. Integration pending.');
     }
 
+    let token = session.access_token;
+
+    // Check expiration and try refresh
     if (session.expires_at && new Date(session.expires_at).getTime() < Date.now()) {
-      throw new Error('Swiggy MCP authorization token has expired. Please re-authenticate.');
+      const refreshed = await this.refreshAccessToken(userId);
+      if (!refreshed) {
+        throw new Error('Swiggy MCP authorization token has expired. Please re-authenticate.');
+      }
+      token = refreshed;
     }
 
     const controller = new AbortController();
@@ -292,7 +361,7 @@ export class SwiggyMcpClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload),
         signal: controller.signal
@@ -324,9 +393,9 @@ export class SwiggyMcpClient {
    * Mandatory Step 1: retrieves real delivery addresses returned by Swiggy.
    * Stores the most recent valid addressId. NEVER invents an addressId.
    */
-  public async syncPrimaryAddress(): Promise<SwiggyAddress | null> {
+  public async syncPrimaryAddress(userId: string = 'default_user'): Promise<SwiggyAddress | null> {
     try {
-      const addresses = await this.callMcpTool<any[]>('get_addresses', {});
+      const addresses = await this.callMcpTool<any[]>('get_addresses', {}, userId);
       if (Array.isArray(addresses) && addresses.length > 0) {
         const primary = addresses[0];
         const addressObj: SwiggyAddress = {
@@ -345,8 +414,8 @@ export class SwiggyMcpClient {
             address_id = ?,
             address_details = ?,
             updated_at = CURRENT_TIMESTAMP
-          WHERE platform_code = 'swiggy'
-        `).run(addressObj.id, JSON.stringify(addressObj));
+          WHERE user_id = ? AND platform_code = 'swiggy'
+        `).run(addressObj.id, JSON.stringify(addressObj), userId);
 
         return addressObj;
       }
@@ -360,8 +429,8 @@ export class SwiggyMcpClient {
   /**
    * Official Food MCP Tool: search_restaurants
    */
-  public async searchRestaurants(query: string, addressId?: string): Promise<SwiggyRestaurantResult[]> {
-    const status = this.getStatus();
+  public async searchRestaurants(query: string, addressId?: string, userId: string = 'default_user'): Promise<SwiggyRestaurantResult[]> {
+    const status = this.getStatus(userId);
     const effectiveAddressId = addressId || status.address?.id;
 
     if (!effectiveAddressId) {
@@ -371,7 +440,7 @@ export class SwiggyMcpClient {
     const raw = await this.callMcpTool('search_restaurants', {
       addressId: effectiveAddressId,
       query
-    });
+    }, userId);
 
     if (!Array.isArray(raw)) return [];
 
@@ -390,8 +459,8 @@ export class SwiggyMcpClient {
   /**
    * Official Food MCP Tool: search_menu
    */
-  public async searchMenu(restaurantId: string, query: string, addressId?: string): Promise<SwiggyMenuItemResult[]> {
-    const status = this.getStatus();
+  public async searchMenu(restaurantId: string, query: string, addressId?: string, userId: string = 'default_user'): Promise<SwiggyMenuItemResult[]> {
+    const status = this.getStatus(userId);
     const effectiveAddressId = addressId || status.address?.id;
 
     if (!effectiveAddressId) {
@@ -402,7 +471,7 @@ export class SwiggyMcpClient {
       addressId: effectiveAddressId,
       restaurantId,
       query
-    });
+    }, userId);
 
     if (!Array.isArray(raw)) return [];
 
@@ -411,7 +480,7 @@ export class SwiggyMcpClient {
       restaurantId,
       name: item.name,
       description: item.description,
-      price: (item.price || item.finalPrice || 0) / 100, // Swiggy returns prices in paise in several schemas
+      price: (item.price || item.finalPrice || 0) / 100,
       isVeg: Boolean(item.isVeg || item.vegetarian),
       portionSize: item.portionSize || item.portion_size,
       variants: item.variants || [],
@@ -423,8 +492,8 @@ export class SwiggyMcpClient {
   /**
    * Official Food MCP Tool: get_restaurant_menu
    */
-  public async getRestaurantMenu(restaurantId: string, addressId?: string): Promise<SwiggyMenuItemResult[]> {
-    const status = this.getStatus();
+  public async getRestaurantMenu(restaurantId: string, addressId?: string, userId: string = 'default_user'): Promise<SwiggyMenuItemResult[]> {
+    const status = this.getStatus(userId);
     const effectiveAddressId = addressId || status.address?.id;
 
     if (!effectiveAddressId) {
@@ -434,7 +503,7 @@ export class SwiggyMcpClient {
     const raw = await this.callMcpTool('get_restaurant_menu', {
       addressId: effectiveAddressId,
       restaurantId
-    });
+    }, userId);
 
     if (!Array.isArray(raw)) return [];
 

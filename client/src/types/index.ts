@@ -34,6 +34,7 @@ export interface PlatformPrice {
   is_official: number;
   membership_applied?: boolean;
   active_membership_discount?: number;
+  potential_discounts?: string[];
   last_updated_human?: string;
 }
 

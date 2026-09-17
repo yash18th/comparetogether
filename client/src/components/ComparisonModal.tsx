@@ -181,14 +181,22 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                             <span>{p.platform_name}</span>
                           </div>
                           {p.data_provenance === 'INTEGRATION_PENDING' ? (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-sandstone)', display: 'block', fontWeight: 400, opacity: 0.85 }}>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-amber)', display: 'block', fontWeight: 600, opacity: 0.9 }}>
                               Integration Pending
                             </span>
-                          ) : p.data_provenance === 'AUTHORIZED' || p.data_provenance === 'LIVE' ? (
+                          ) : p.data_provenance === 'LIVE' ? (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-emerald)', display: 'block', fontWeight: 600 }}>
+                              Live Verified
+                            </span>
+                          ) : p.data_provenance === 'AUTHORIZED' ? (
                             <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)', display: 'block', fontWeight: 600 }}>
                               Official Partner
                             </span>
-                          ) : null}
+                          ) : (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 400 }}>
+                              Unavailable
+                            </span>
+                          )}
                         </th>
                       ))}
                     </tr>

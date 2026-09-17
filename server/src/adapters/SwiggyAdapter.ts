@@ -1,4 +1,11 @@
-import { PlatformAdapter, PlatformMetadata, PricingInput, NormalizedPricing, PlatformDataProvenance } from './PlatformAdapter.js';
+import {
+  PlatformAdapter,
+  PlatformMetadata,
+  PricingInput,
+  NormalizedPricing,
+  NormalizedPlatformProduct,
+  PlatformDataStatus
+} from './PlatformAdapter.js';
 import { SwiggyMcpClient } from '../services/SwiggyMcpClient.js';
 
 export class SwiggyAdapter implements PlatformAdapter {
@@ -15,25 +22,117 @@ export class SwiggyAdapter implements PlatformAdapter {
   };
 
   /**
-   * Calculates pricing strictly based on real platform state.
-   * NEVER invents fake delivery fees, fake platform fees, or fake coupons.
+   * Standardized NormalizedPlatformProduct return
    */
-  calculatePricing(input: PricingInput, restaurantSlug: string, itemSlug: string): NormalizedPricing {
+  public getNormalizedProduct(input: PricingInput, restaurantSlug: string, itemSlug: string): NormalizedPlatformProduct {
     const swiggyClient = SwiggyMcpClient.getInstance();
-    const status = swiggyClient.getStatus();
+    const status = swiggyClient.getStatus(input.userId);
 
     const isAuthorized = status.connected && status.status === 'AUTHORIZED';
-    const provenance: PlatformDataProvenance = isAuthorized ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+    const dataStatus: PlatformDataStatus = isAuthorized ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
 
     const itemPrice = input.itemPrice || 0;
     const addons = input.addons || 0;
+    const subtotal = itemPrice + addons;
 
-    // If Swiggy MCP is authorized and live
     if (isAuthorized) {
-      // In live MCP mode, fees come directly from live cart or menu quotes
-      // When line-item fee breakdown is not yet finalized via live cart checkout:
-      const hasFullBreakdown = false; // Until cart checkout returns exact delivery/platform/packaging fees
+      // Live session available
+      return {
+        platform: this.metadata.name,
+        platformId: this.metadata.id,
+        platformCode: this.metadata.code,
+        restaurantId: input.restaurantId || restaurantSlug,
+        restaurantName: input.restaurantName || restaurantSlug,
+        branchId: input.branchId || '',
+        branchName: input.branchName || input.branchArea || '',
+        address: input.address,
+        menuItemId: input.menuItemId || itemSlug,
+        itemName: input.itemName || itemSlug,
+        description: input.description,
+        category: input.category,
+        image: input.image,
+        portion: input.portionSize ? { size: input.portionSize, unit: input.portionUnit || 'g' } : undefined,
+        variants: input.variants || [],
+        addons: [],
+        availability: input.isAvailable !== false,
 
+        itemPrice,
+        addonTotal: addons,
+
+        deliveryFee: 'Unavailable',
+        platformFee: 'Unavailable',
+        packagingFee: 'Unavailable',
+        taxes: 'Unavailable',
+
+        discount: 0,
+        couponDiscount: 0,
+        potentialDiscounts: ['Swiggy One free delivery and member discounts eligible upon checkout'],
+
+        subtotal,
+        finalPrice: 'Unavailable',
+
+        currency: 'INR',
+        fetchedAt: status.lastUpdated || new Date().toISOString(),
+        dataStatus: 'AUTHORIZED',
+        unavailabilityReason: 'Live checkout session required for final payable fee breakdown',
+        orderUrl: this.getDeepLink(restaurantSlug, itemSlug)
+      };
+    }
+
+    return {
+      platform: this.metadata.name,
+      platformId: this.metadata.id,
+      platformCode: this.metadata.code,
+      restaurantId: input.restaurantId || restaurantSlug,
+      restaurantName: input.restaurantName || restaurantSlug,
+      branchId: input.branchId || '',
+      branchName: input.branchName || input.branchArea || '',
+      address: input.address,
+      menuItemId: input.menuItemId || itemSlug,
+      itemName: input.itemName || itemSlug,
+      description: input.description,
+      category: input.category,
+      image: input.image,
+      portion: input.portionSize ? { size: input.portionSize, unit: input.portionUnit || 'g' } : undefined,
+      variants: input.variants || [],
+      addons: [],
+      availability: input.isAvailable !== false,
+
+      itemPrice,
+      addonTotal: addons,
+
+      deliveryFee: 'Unavailable',
+      platformFee: 'Unavailable',
+      packagingFee: 'Unavailable',
+      taxes: 'Unavailable',
+
+      discount: 0,
+      couponDiscount: 0,
+
+      subtotal,
+      finalPrice: 'Unavailable',
+
+      currency: 'INR',
+      fetchedAt: new Date().toISOString(),
+      dataStatus: 'INTEGRATION_PENDING',
+      unavailabilityReason: 'Swiggy MCP integration pending. User OAuth 2.1 authorization required.',
+      orderUrl: this.getDeepLink(restaurantSlug, itemSlug)
+    };
+  }
+
+  /**
+   * Calculates pricing strictly based on real platform state.
+   * NEVER invents fake delivery fees, fake platform fees, or fake coupons.
+   */
+  public calculatePricing(input: PricingInput, restaurantSlug: string, itemSlug: string): NormalizedPricing {
+    const swiggyClient = SwiggyMcpClient.getInstance();
+    const status = swiggyClient.getStatus(input.userId);
+
+    const isAuthorized = status.connected && status.status === 'AUTHORIZED';
+    const itemPrice = input.itemPrice || 0;
+    const addons = input.addons || 0;
+
+    if (isAuthorized) {
       return {
         platformId: this.metadata.id,
         platformName: this.metadata.name,
@@ -46,8 +145,8 @@ export class SwiggyAdapter implements PlatformAdapter {
         taxes: 0,
         discount: 0,
         finalPrice: itemPrice + addons,
-        finalPriceUnavailable: !hasFullBreakdown,
-        unavailabilityReason: hasFullBreakdown ? undefined : 'Live delivery & platform fees require active cart checkout quote',
+        finalPriceUnavailable: true,
+        unavailabilityReason: 'Live delivery & platform fees require active cart checkout quote',
         membershipDiscount: 0,
         membershipApplied: Boolean(input.hasMembership),
         membershipPlanName: 'Swiggy One',
@@ -61,8 +160,6 @@ export class SwiggyAdapter implements PlatformAdapter {
       };
     }
 
-    // Swiggy is not connected: report honestly as INTEGRATION_PENDING
-    // DO NOT invent delivery fees, platform fees, or mock calculations!
     return {
       platformId: this.metadata.id,
       platformName: this.metadata.name,
@@ -90,12 +187,12 @@ export class SwiggyAdapter implements PlatformAdapter {
     };
   }
 
-  getDeepLink(restaurantSlug: string, itemSlug?: string): string {
+  public getDeepLink(restaurantSlug: string, itemSlug?: string): string {
     const base = `https://www.swiggy.com/restaurants/${restaurantSlug}`;
     return itemSlug ? `${base}?search=${encodeURIComponent(itemSlug)}` : base;
   }
 
-  isAvailable(area: string): boolean {
+  public isAvailable(area: string): boolean {
     const swiggyClient = SwiggyMcpClient.getInstance();
     const status = swiggyClient.getStatus();
     return status.connected;
