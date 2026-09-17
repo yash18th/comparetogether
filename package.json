@@ -9,7 +9,14 @@
     "start": "cd server && npm run start",
     "test:engine": "cd server && npx tsx src/test_verification.ts"
   },
-  "keywords": ["food-delivery", "price-comparison", "zomato", "swiggy", "eatclub"],
+  "keywords": [
+    "food-delivery",
+    "price-comparison",
+    "zomato",
+    "swiggy",
+    "eatclub"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "type": "module"
 }

@@ -273,11 +273,11 @@ router.post('/search', (req, res) => {
     const {
       query,
       q,
-      category,
+      category: rawCategory,
       location,
-      area,
-      city,
-      pincode,
+      area: rawArea,
+      city: rawCity,
+      pincode: rawPincode,
       platforms,
       platform,
       vegOnly,
@@ -292,9 +292,78 @@ router.post('/search', (req, res) => {
 
     const userId = bodyUserId || (req.headers['x-user-id'] as string) || 'default_user';
     const searchQuery = (query ?? q ?? '').toString().trim();
-    const locArea = (location?.name || area || '').toString().trim();
-    const locCity = (location?.city || city || 'Bangalore').toString().trim();
-    const locPincode = (location?.pincode || pincode || '').toString().trim();
+    const category = (rawCategory && rawCategory !== 'All') ? rawCategory.toString().trim() : null;
+
+    let locArea = '';
+    let locCity = 'Bangalore';
+    let locPincode = '';
+
+    if (typeof location === 'string') {
+      locArea = location.trim();
+    } else if (location && typeof location === 'object') {
+      locArea = (location.name || location.area || '').toString().trim();
+      locCity = (location.city || '').toString().trim() || 'Bangalore';
+      locPincode = (location.pincode || '').toString().trim();
+    }
+
+    if (!locArea) {
+      locArea = (rawArea || '').toString().trim();
+    }
+    if (!locCity || locCity === 'Bangalore') {
+      locCity = (rawCity || 'Bangalore').toString().trim();
+    }
+    if (!locPincode) {
+      locPincode = (rawPincode || '').toString().trim();
+    }
+
+    // Normalize Bengaluru to Bangalore
+    if (locCity.toLowerCase() === 'bengaluru') {
+      locCity = 'Bangalore';
+    }
+
+    // Safe debug logging in development without sensitive secrets
+    console.log('[CompareSearch Express]', {
+      query: searchQuery,
+      category,
+      location: { area: locArea, city: locCity, pincode: locPincode },
+      platforms: platform || platforms
+    });
+
+    // Check Swiggy connection status for this user
+    const swiggyStatus = SwiggyMcpClient.getInstance().getStatus(userId);
+    const isSwiggyConnected = swiggyStatus.connected && swiggyStatus.status === 'AUTHORIZED';
+    const isZomatoAuthorized = Boolean(process.env.ZOMATO_API_KEY && process.env.ZOMATO_API_KEY.trim().length > 0);
+
+    const swiggyState = isSwiggyConnected ? 'LIVE' : 'AUTH_REQUIRED';
+    const zomatoState = isZomatoAuthorized ? 'LIVE' : 'INTEGRATION_PENDING';
+
+    const platformStatus = {
+      swiggy: swiggyState,
+      zomato: zomatoState,
+      eatclub: 'LIVE',
+      direct: 'LIVE'
+    };
+
+    // If both query and category are empty, return structured empty results
+    if (!searchQuery && !category) {
+      return res.json({
+        success: true,
+        query: '',
+        category: null,
+        location: locArea || 'Indiranagar',
+        count: 0,
+        results: [],
+        data: [],
+        platformStatus,
+        platforms: [
+          { platform: 'swiggy', status: swiggyState, results: [] },
+          { platform: 'zomato', status: zomatoState, results: [] },
+          { platform: 'eatclub', status: 'LIVE', results: [] },
+          { platform: 'direct', status: 'LIVE', results: [] }
+        ],
+        fetchedAt: new Date().toISOString()
+      });
+    }
 
     let isVeg: boolean | undefined = undefined;
     if (vegOnly === true) isVeg = true;
@@ -305,7 +374,7 @@ router.post('/search', (req, res) => {
 
     const results = SearchEngine.search({
       query: searchQuery,
-      category: category && category !== 'All' ? category : undefined,
+      category: category || undefined,
       city: locCity,
       area: locArea,
       pincode: locPincode,
@@ -318,14 +387,47 @@ router.post('/search', (req, res) => {
       userId
     });
 
+    const platformsArray = [
+      {
+        platform: 'swiggy',
+        status: swiggyState,
+        results: isSwiggyConnected ? results : []
+      },
+      {
+        platform: 'zomato',
+        status: zomatoState,
+        results: isZomatoAuthorized ? results : []
+      },
+      {
+        platform: 'eatclub',
+        status: 'LIVE',
+        results: results
+      },
+      {
+        platform: 'direct',
+        status: 'LIVE',
+        results: results
+      }
+    ];
+
     res.json({
       success: true,
+      query: searchQuery,
+      category: category,
+      location: locArea || 'Indiranagar',
       count: results.length,
-      data: results
+      results: results,
+      data: results,
+      platformStatus,
+      platforms: platformsArray,
+      fetchedAt: new Date().toISOString()
     });
   } catch (error: any) {
     console.error('Compare search error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Error executing search' });
+    res.status(500).json({
+      success: false,
+      message: 'FoodCompare server encountered an unexpected error. Please try again.'
+    });
   }
 });
 

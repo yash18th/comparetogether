@@ -1,28 +1,3 @@
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// api/compare/[productId].ts
-var productId_exports = {};
-__export(productId_exports, {
-  default: () => handler
-});
-module.exports = __toCommonJS(productId_exports);
-
 // api/_lib/catalogData.ts
 var RESTAURANTS = [
   {
@@ -1630,30 +1605,51 @@ function getProductComparison(productId, hasMembership = false) {
       finalPrice = Math.max(0, pp.final_price - pp.membership_discount);
       membershipApplied = true;
     }
+    const isSwiggy = pp.platform_code === 'swiggy';
+    const isZomato = pp.platform_code === 'zomato';
+    let finalPriceUnavailable = Boolean(pp.final_price_unavailable);
+    let dataProvenance = pp.data_provenance || 'LIVE';
+    let unavailabilityReason = undefined;
+    let isAvailable = Boolean(pp.availability);
+
+    if (isSwiggy) {
+      finalPriceUnavailable = true;
+      dataProvenance = 'AUTH_REQUIRED';
+      unavailabilityReason = 'Connect Swiggy to compare live Swiggy prices.';
+      isAvailable = false;
+    } else if (isZomato) {
+      finalPriceUnavailable = true;
+      dataProvenance = 'INTEGRATION_PENDING';
+      unavailabilityReason = 'Zomato integration is awaiting authorized access.';
+      isAvailable = false;
+    }
+
     return {
       id: pp.id,
       platform_id: pp.platform_id,
       item_price: pp.item_price,
-      delivery_fee: pp.delivery_fee,
-      platform_fee: pp.platform_fee,
-      packaging_fee: pp.packaging_fee,
-      taxes: pp.taxes,
+      delivery_fee: finalPriceUnavailable ? 'Unavailable' : pp.delivery_fee,
+      platform_fee: finalPriceUnavailable ? 'Unavailable' : pp.platform_fee,
+      packaging_fee: finalPriceUnavailable ? 'Unavailable' : pp.packaging_fee,
+      taxes: finalPriceUnavailable ? 'Unavailable' : pp.taxes,
       discount: pp.discount,
-      final_price: finalPrice,
+      final_price: finalPriceUnavailable ? 'Unavailable' : finalPrice,
+      raw_final_price: finalPrice,
       membership_discount: pp.membership_discount,
       membership_type: pp.membership_type,
       currency: pp.currency,
       order_url: pp.order_url,
-      availability: pp.availability,
+      availability: isAvailable ? 1 : 0,
       updated_at: pp.updated_at,
       platform_name: pp.platform_name,
       platform_code: pp.platform_code,
       platform_logo: pp.platform_logo,
-      integration_status: pp.integration_status,
+      integration_status: isSwiggy ? 'auth_required' : isZomato ? 'integration_pending' : pp.integration_status,
       is_official: pp.is_official,
       addons: 0,
-      final_price_unavailable: Boolean(pp.final_price_unavailable),
-      data_provenance: pp.data_provenance,
+      final_price_unavailable: finalPriceUnavailable,
+      unavailability_reason: unavailabilityReason,
+      data_provenance: dataProvenance,
       membership_applied: membershipApplied
     };
   });
@@ -1741,3 +1737,5 @@ function handler(req, res) {
     res.status(500).json({ success: false, message: error.message || "Error loading comparison" });
   }
 }
+
+export default handler;

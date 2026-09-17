@@ -15,7 +15,7 @@ export class SwiggyAdapter implements PlatformAdapter {
     code: 'swiggy',
     logoUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=80&h=80&fit=crop',
     integrationStatus: 'pending',
-    dataProvenance: 'INTEGRATION_PENDING',
+    dataProvenance: 'AUTH_REQUIRED',
     isOfficial: true,
     legalNotice: 'Official Swiggy Builders Club / Food MCP Integration (OAuth 2.1 + PKCE). Real platform data is only displayed when authorized.',
     orderUrlTemplate: 'https://www.swiggy.com/restaurants/{restaurantSlug}'
@@ -29,7 +29,7 @@ export class SwiggyAdapter implements PlatformAdapter {
     const status = swiggyClient.getStatus(input.userId);
 
     const isAuthorized = status.connected && status.status === 'AUTHORIZED';
-    const dataStatus: PlatformDataStatus = isAuthorized ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+    const dataStatus: PlatformDataStatus = isAuthorized ? 'AUTHORIZED' : 'AUTH_REQUIRED';
 
     const itemPrice = input.itemPrice || 0;
     const addons = input.addons || 0;
@@ -114,8 +114,8 @@ export class SwiggyAdapter implements PlatformAdapter {
 
       currency: 'INR',
       fetchedAt: new Date().toISOString(),
-      dataStatus: 'INTEGRATION_PENDING',
-      unavailabilityReason: 'Swiggy MCP integration pending. User OAuth 2.1 authorization required.',
+      dataStatus: 'AUTH_REQUIRED',
+      unavailabilityReason: 'Connect Swiggy to compare live Swiggy prices. User OAuth 2.1 authorization required.',
       orderUrl: this.getDeepLink(restaurantSlug, itemSlug)
     };
   }
@@ -173,7 +173,7 @@ export class SwiggyAdapter implements PlatformAdapter {
       discount: 0,
       finalPrice: itemPrice,
       finalPriceUnavailable: true,
-      unavailabilityReason: 'Swiggy MCP integration pending. Final payable price unavailable without authorized session.',
+      unavailabilityReason: 'Connect Swiggy to compare live Swiggy prices. Final payable price unavailable without authorized session.',
       membershipDiscount: 0,
       membershipApplied: false,
       membershipPlanName: undefined,
@@ -182,7 +182,7 @@ export class SwiggyAdapter implements PlatformAdapter {
       orderUrl: this.getDeepLink(restaurantSlug, itemSlug),
       availability: false,
       sourceType: 'authorized_api',
-      dataProvenance: 'INTEGRATION_PENDING',
+      dataProvenance: 'AUTH_REQUIRED',
       lastUpdated: new Date().toISOString()
     };
   }

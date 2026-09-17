@@ -1,4 +1,4 @@
-export type PlatformDataStatus = 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING';
+export type PlatformDataStatus = 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' | 'AUTH_REQUIRED';
 export type PlatformDataProvenance = PlatformDataStatus;
 
 export interface PlatformMetadata {

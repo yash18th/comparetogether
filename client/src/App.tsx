@@ -199,6 +199,7 @@ const MainApp: React.FC = () => {
     // Toggle category; DO NOT overwrite searchQuery with cat!
     const newCat = category === cat ? 'All' : cat;
     setCategory(newCat);
+    setSearchQuery('');
     setViewMode('search_results');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

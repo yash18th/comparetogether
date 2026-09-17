@@ -1,28 +1,4 @@
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// api/search.ts
-var search_exports = {};
-__export(search_exports, {
-  default: () => handler
-});
-module.exports = __toCommonJS(search_exports);
-
+// FoodCompare - Multi-Platform Search & Comparison Engine
 // api/_lib/catalogData.ts
 var RESTAURANTS = [
   {
@@ -1351,20 +1327,32 @@ var PRODUCT_PRICES = [
   }
 ];
 
-// api/_lib/engine.ts
+
+// Search catalog with platform failure isolation & category separation
 function searchCatalog(params) {
-  const rawQuery = (params.query || "").trim().toLowerCase();
-  const city = (params.city || "Bangalore").toLowerCase();
-  const area = (params.area || "").toLowerCase();
-  const category = params.category && params.category !== "All" ? params.category.toLowerCase() : "";
+  const rawQuery = (params.query || '').trim().toLowerCase();
+  const rawCity = (params.city || 'Bangalore').trim().toLowerCase();
+  const city = (rawCity === 'bengaluru' || rawCity === 'bangalore') ? 'bangalore' : rawCity;
+  const area = (params.area || '').trim().toLowerCase();
+  const category = params.category && params.category !== 'All' ? params.category.trim().toLowerCase() : '';
+
+  // If both query and category are empty, return empty results cleanly
+  if (!rawQuery && !category) {
+    return [];
+  }
+
+  // 1. Filter branches & products
   const activeBranches = BRANCHES.filter((b) => {
     if (!b.is_active) return false;
-    if (city && b.city.toLowerCase() !== city) return false;
-    if (area && b.area.toLowerCase() !== area && !b.area.toLowerCase().includes(area)) return false;
+    const bCity = b.city.toLowerCase();
+    if (city && bCity !== city && bCity !== 'bangalore') return false;
+    if (area && b.area.toLowerCase() !== area && !b.area.toLowerCase().includes(area) && !area.includes(b.area.toLowerCase())) return false;
     return true;
   });
+
   const branchMap = new Map(activeBranches.map((b) => [b.id, b]));
   const restaurantMap = new Map(RESTAURANTS.map((r) => [r.id, r]));
+
   let matchedProducts = PRODUCTS.filter((p) => {
     const branch = branchMap.get(p.restaurant_branch_id);
     if (!branch) return false;
@@ -1379,12 +1367,15 @@ function searchCatalog(params) {
     }
     return true;
   });
+
+  // 2. Score items
   let scoredItems = matchedProducts.map((p) => {
     const branch = branchMap.get(p.restaurant_branch_id);
     const rest = restaurantMap.get(branch.restaurant_id);
     let score = 1;
+
     if (rawQuery) {
-      const text = `${p.name} ${rest.name} ${branch.name} ${p.category} ${p.cuisine}`.toLowerCase();
+      const text = (p.name + ' ' + rest.name + ' ' + branch.name + ' ' + p.category + ' ' + p.cuisine).toLowerCase();
       const tokens = rawQuery.split(/\s+/).filter(Boolean);
       let matchCount = 0;
       for (const t of tokens) {
@@ -1393,11 +1384,12 @@ function searchCatalog(params) {
       if (text.includes(rawQuery)) {
         score += 2;
       }
-      score += matchCount / tokens.length * 1.5;
+      score += (matchCount / tokens.length) * 1.5;
       if (matchCount === 0 && !text.includes(rawQuery)) {
         score = 0;
       }
     }
+
     return {
       product: p,
       branch,
@@ -1405,13 +1397,17 @@ function searchCatalog(params) {
       score
     };
   });
+
   if (rawQuery) {
     scoredItems = scoredItems.filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
   }
+
+  // 3. Attach platform prices with strict platform failure isolation
   const results = scoredItems.map((item) => {
     const p = item.product;
     const branch = item.branch;
     const rest = item.restaurant;
+
     const prices = PRODUCT_PRICES.filter((pp) => pp.product_id === p.id).map((pp) => {
       let finalPrice = pp.final_price;
       let membershipApplied = false;
@@ -1419,47 +1415,93 @@ function searchCatalog(params) {
         finalPrice = Math.max(0, pp.final_price - pp.membership_discount);
         membershipApplied = true;
       }
+
+      const isSwiggy = pp.platform_code === 'swiggy';
+      const isZomato = pp.platform_code === 'zomato';
+
+      let finalPriceUnavailable = Boolean(pp.final_price_unavailable);
+      let dataProvenance = pp.data_provenance || 'LIVE';
+      let unavailabilityReason = undefined;
+      let isAvailable = Boolean(pp.availability);
+
+      // Isolated platform handling:
+      // Swiggy: requires active OAuth 2.1 authorization
+      // Zomato: requires authorized partner credentials
+      if (isSwiggy) {
+        finalPriceUnavailable = true;
+        dataProvenance = 'AUTH_REQUIRED';
+        unavailabilityReason = 'Connect Swiggy to compare live Swiggy prices.';
+        isAvailable = false;
+      } else if (isZomato) {
+        finalPriceUnavailable = true;
+        dataProvenance = 'INTEGRATION_PENDING';
+        unavailabilityReason = 'Zomato integration is awaiting authorized access.';
+        isAvailable = false;
+      }
+
       return {
         id: pp.id,
         platform_id: pp.platform_id,
         item_price: pp.item_price,
-        delivery_fee: pp.delivery_fee,
-        platform_fee: pp.platform_fee,
-        packaging_fee: pp.packaging_fee,
-        taxes: pp.taxes,
+        delivery_fee: finalPriceUnavailable ? 'Unavailable' : pp.delivery_fee,
+        platform_fee: finalPriceUnavailable ? 'Unavailable' : pp.platform_fee,
+        packaging_fee: finalPriceUnavailable ? 'Unavailable' : pp.packaging_fee,
+        taxes: finalPriceUnavailable ? 'Unavailable' : pp.taxes,
         discount: pp.discount,
-        final_price: finalPrice,
+        final_price: finalPriceUnavailable ? 'Unavailable' : finalPrice,
+        raw_final_price: finalPrice,
         membership_discount: pp.membership_discount,
         membership_type: pp.membership_type,
         currency: pp.currency,
         order_url: pp.order_url,
-        availability: pp.availability,
+        availability: isAvailable ? 1 : 0,
         updated_at: pp.updated_at,
         platform_name: pp.platform_name,
         platform_code: pp.platform_code,
         platform_logo: pp.platform_logo,
-        integration_status: pp.integration_status,
+        integration_status: isSwiggy ? 'auth_required' : isZomato ? 'integration_pending' : pp.integration_status,
         is_official: pp.is_official,
         addons: 0,
-        final_price_unavailable: Boolean(pp.final_price_unavailable),
-        data_provenance: pp.data_provenance,
+        final_price_unavailable: finalPriceUnavailable,
+        unavailability_reason: unavailabilityReason,
+        data_provenance: dataProvenance,
         membership_applied: membershipApplied
       };
     }).filter((pr) => {
       if (params.platform && pr.platform_code !== params.platform) return false;
       return true;
     });
-    const verifiedPrices = prices.filter((pr) => !pr.final_price_unavailable && pr.final_price > 0);
-    const validPrices = prices.filter((pr) => pr.item_price > 0);
-    const lowestFinalPrice = verifiedPrices.length > 0 ? Math.min(...verifiedPrices.map((pr) => pr.final_price)) : validPrices.length > 0 ? Math.min(...validPrices.map((pr) => pr.item_price)) : 0;
-    const highestFinalPrice = verifiedPrices.length > 0 ? Math.max(...verifiedPrices.map((pr) => pr.final_price)) : validPrices.length > 0 ? Math.max(...validPrices.map((pr) => pr.item_price)) : 0;
-    const lowestItemPrice = validPrices.length > 0 ? Math.min(...validPrices.map((pr) => pr.item_price)) : 0;
-    const maxSavings = verifiedPrices.length >= 2 ? Math.max(0, highestFinalPrice - lowestFinalPrice) : 0;
-    let pricePer100g = void 0;
-    if (p.portion_size && (p.portion_unit === "g" || p.portion_unit === "ml")) {
-      pricePer100g = Math.round(lowestFinalPrice / p.portion_size * 100 * 10) / 10;
+
+    const verifiedPrices = prices.filter((pr) => !pr.final_price_unavailable && pr.availability);
+    const validPrices = prices.filter((pr) => typeof pr.item_price === 'number' && pr.item_price > 0);
+
+    const lowestFinalPrice = verifiedPrices.length > 0
+      ? Math.min(...verifiedPrices.map((pr) => Number(pr.final_price)))
+      : (validPrices.length > 0 ? Math.min(...validPrices.map((pr) => pr.item_price)) : 0);
+
+    const highestFinalPrice = verifiedPrices.length > 0
+      ? Math.max(...verifiedPrices.map((pr) => Number(pr.final_price)))
+      : (validPrices.length > 0 ? Math.max(...validPrices.map((pr) => pr.item_price)) : 0);
+
+    const lowestItemPrice = validPrices.length > 0
+      ? Math.min(...validPrices.map((pr) => pr.item_price))
+      : 0;
+
+    const maxSavings = verifiedPrices.length >= 2
+      ? Math.max(0, highestFinalPrice - lowestFinalPrice)
+      : 0;
+
+    let pricePer100g = undefined;
+    if (p.portion_size && (p.portion_unit === 'g' || p.portion_unit === 'ml')) {
+      pricePer100g = Math.round((lowestFinalPrice / p.portion_size) * 100 * 10) / 10;
     }
-    const savingsText = maxSavings > 0 ? `Save \u20B9${maxSavings} vs highest verified total` : verifiedPrices.length >= 2 ? "Prices are verified identical across platforms" : "Transparent price breakdown shown";
+
+    const savingsText = maxSavings > 0
+      ? ('Save ₹' + maxSavings + ' vs highest verified total')
+      : verifiedPrices.length >= 2
+      ? 'Prices are verified identical across platforms'
+      : 'Transparent verified platform breakdown shown';
+
     return {
       product_id: p.id,
       product_name: p.name,
@@ -1491,18 +1533,19 @@ function searchCatalog(params) {
       savingsText
     };
   });
+
   let filtered = results;
-  if (params.minPrice !== void 0) {
+  if (params.minPrice !== undefined) {
     filtered = filtered.filter((r) => r.lowestFinalPrice >= params.minPrice);
   }
-  if (params.maxPrice !== void 0) {
+  if (params.maxPrice !== undefined) {
     filtered = filtered.filter((r) => r.lowestFinalPrice <= params.maxPrice);
   }
-  if (params.sortBy === "item_price_asc") {
+  if (params.sortBy === 'item_price_asc') {
     filtered.sort((a, b) => a.lowestItemPrice - b.lowestItemPrice);
-  } else if (params.sortBy === "discount_desc") {
+  } else if (params.sortBy === 'discount_desc') {
     filtered.sort((a, b) => b.maxSavings - a.maxSavings);
-  } else if (params.sortBy === "rating") {
+  } else if (params.sortBy === 'rating') {
     filtered.sort((a, b) => b.restaurant_rating - a.restaurant_rating);
   } else {
     filtered.sort((a, b) => a.lowestFinalPrice - b.lowestFinalPrice);
@@ -1510,33 +1553,72 @@ function searchCatalog(params) {
   return filtered;
 }
 
-// api/search.ts
-function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
-  if (req.method === "OPTIONS") {
+export default function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+
   try {
-    const body = req.body || {};
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Invalid JSON request payload' });
+      }
+    }
+
     const qp = req.query || {};
-    const query = (body.query ?? body.q ?? qp.q ?? qp.query ?? "").toString();
-    const category = body.category || qp.category;
-    const location = body.location || {};
-    const area = location.name || body.area || qp.area || "";
-    const city = location.city || body.city || qp.city || "Bangalore";
-    const pincode = location.pincode || body.pincode || qp.pincode || "";
-    let vegetarian = void 0;
+    const query = (body.query ?? body.q ?? qp.q ?? qp.query ?? '').toString().trim();
+    const rawCategory = body.category !== undefined ? body.category : qp.category;
+    const category = (rawCategory && rawCategory !== 'All') ? rawCategory.toString().trim() : null;
+
+    let area = '';
+    let city = 'Bangalore';
+    let pincode = '';
+
+    if (typeof body.location === 'string') {
+      area = body.location.trim();
+    } else if (body.location && typeof body.location === 'object') {
+      area = (body.location.name || body.location.area || '').toString().trim();
+      city = (body.location.city || '').toString().trim() || 'Bangalore';
+      pincode = (body.location.pincode || '').toString().trim();
+    }
+
+    if (!area) {
+      area = (body.area || qp.area || '').toString().trim();
+    }
+    if (!city || city === 'Bangalore') {
+      city = (body.city || qp.city || 'Bangalore').toString().trim();
+    }
+    if (!pincode) {
+      pincode = (body.pincode || qp.pincode || '').toString().trim();
+    }
+
+    // Safe debug logging without sensitive secrets
+    console.log('[CompareSearch]', {
+      query,
+      category,
+      location: { area, city, pincode },
+      platforms: body.platforms || qp.platform
+    });
+
+    let vegetarian = undefined;
     if (body.vegOnly === true) vegetarian = true;
     else if (body.nonVegOnly === true) vegetarian = false;
-    else if (body.vegetarian !== void 0) vegetarian = Boolean(body.vegetarian);
-    else if (qp.vegetarian !== void 0) vegetarian = qp.vegetarian === "true";
-    const minPrice = body.minPrice ? Number(body.minPrice) : qp.minPrice ? Number(qp.minPrice) : void 0;
-    const maxPrice = body.maxPrice ? Number(body.maxPrice) : qp.maxPrice ? Number(qp.maxPrice) : void 0;
+    else if (body.vegetarian !== undefined) vegetarian = Boolean(body.vegetarian);
+    else if (qp.vegetarian !== undefined) vegetarian = qp.vegetarian === 'true';
+
+    const minPrice = body.minPrice ? Number(body.minPrice) : qp.minPrice ? Number(qp.minPrice) : undefined;
+    const maxPrice = body.maxPrice ? Number(body.maxPrice) : qp.maxPrice ? Number(qp.maxPrice) : undefined;
     const platform = body.platform || qp.platform;
     const sortBy = body.sortBy || qp.sortBy;
-    const hasMembership = Boolean(body.membership || qp.membership === "true");
+    const hasMembership = Boolean(body.membership || qp.membership === 'true');
+
     const results = searchCatalog({
       query,
       category,
@@ -1550,12 +1632,59 @@ function handler(req, res) {
       sortBy,
       hasMembership
     });
+
+    const swiggyStatus = 'AUTH_REQUIRED';
+    const zomatoStatus = 'INTEGRATION_PENDING';
+    const eatclubStatus = 'LIVE';
+    const directStatus = 'LIVE';
+
+    const platformStatus = {
+      swiggy: swiggyStatus,
+      zomato: zomatoStatus,
+      eatclub: eatclubStatus,
+      direct: directStatus
+    };
+
+    const platforms = [
+      {
+        platform: 'swiggy',
+        status: swiggyStatus,
+        results: []
+      },
+      {
+        platform: 'zomato',
+        status: zomatoStatus,
+        results: []
+      },
+      {
+        platform: 'eatclub',
+        status: eatclubStatus,
+        results: results
+      },
+      {
+        platform: 'direct',
+        status: directStatus,
+        results: results
+      }
+    ];
+
     res.status(200).json({
       success: true,
+      query: query,
+      category: category,
+      location: area || 'Indiranagar',
       count: results.length,
-      data: results
+      results: results,
+      data: results,
+      platformStatus: platformStatus,
+      platforms: platforms,
+      fetchedAt: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message || "Error executing search" });
+    console.error('Search error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'FoodCompare server encountered an unexpected error. Please try again.'
+    });
   }
 }

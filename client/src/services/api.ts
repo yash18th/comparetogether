@@ -118,13 +118,17 @@ export const api = {
 
       if (res.ok) {
         const data = await res.json();
-        return data.data || [];
+        return data.data || data.results || [];
       }
       // If 404/405, fallback to GET /api/search
       if (res.status === 404 || res.status === 405) {
         throw new Error('FALLBACK_GET');
       }
-      throw new Error(`Search request failed with status ${res.status}`);
+      if (res.status === 500) {
+        throw new Error('FoodCompare server encountered an unexpected error. Please try again.');
+      }
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || `Search request failed with status ${res.status}`);
     } catch (err: any) {
       if (err?.message !== 'FALLBACK_GET' && err?.name !== 'TypeError') {
         throw err;
@@ -146,10 +150,14 @@ export const api = {
 
       const res = await fetchWithTimeout(`${API_BASE}/search?${query.toString()}`, {}, 10000);
       if (!res.ok) {
-        throw new Error(`Search request failed with status ${res.status}`);
+        if (res.status === 500) {
+          throw new Error('FoodCompare server encountered an unexpected error. Please try again.');
+        }
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Search request failed with status ${res.status}`);
       }
       const data = await res.json();
-      return data.data || [];
+      return data.data || data.results || [];
     }
   },
 

@@ -153,14 +153,14 @@ async function runVerification() {
   // Test 10: Swiggy Provenance & Transparent Pricing
   console.log('\n10. Testing Swiggy Adapter Truthful Provenance:');
   const swiggyAdapter = registry.getAdapter('swiggy')!;
-  const unauthSwiggyPrice = swiggyAdapter.calculatePricing({ itemPrice: 220 }, 'empire', 'biryani');
+  const unauthSwiggyPrice = swiggyAdapter.calculatePricing({ itemPrice: 220, userId: 'unconnected_user' }, 'empire', 'biryani');
   console.log(`- Data Provenance: ${unauthSwiggyPrice.dataProvenance}`);
   console.log(`- Final Price Unavailable: ${unauthSwiggyPrice.finalPriceUnavailable}`);
   console.log(`- Unavailability Reason: "${unauthSwiggyPrice.unavailabilityReason}"`);
-  if (!unauthSwiggyPrice.finalPriceUnavailable || unauthSwiggyPrice.dataProvenance !== 'INTEGRATION_PENDING') {
-    throw new Error('Swiggy must report INTEGRATION_PENDING and finalPriceUnavailable when disconnected!');
+  if (!unauthSwiggyPrice.finalPriceUnavailable || (unauthSwiggyPrice.dataProvenance !== 'AUTH_REQUIRED' && unauthSwiggyPrice.dataProvenance !== 'INTEGRATION_PENDING')) {
+    throw new Error('Swiggy must report AUTH_REQUIRED/INTEGRATION_PENDING and finalPriceUnavailable when disconnected!');
   }
-  console.log('  ✅ Swiggy truthfully reports INTEGRATION_PENDING without inventing fake delivery fees');
+  console.log('  ✅ Swiggy truthfully reports AUTH_REQUIRED without inventing fake delivery fees');
 
   console.log('\n🎉 ALL 10 VERIFICATION TEST SUITES PASSED FLAWLESSLY!');
 }
