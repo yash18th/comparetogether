@@ -4,6 +4,7 @@ import { NormalizationEngine } from '../engine/NormalizationEngine.js';
 import { SearchEngine } from '../engine/SearchEngine.js';
 import { SwiggyMcpClient } from '../services/SwiggyMcpClient.js';
 import { NormalizedPlatformProduct } from '../adapters/PlatformAdapter.js';
+import { ComparisonService } from '../services/ComparisonService.js';
 
 const router = Router();
 
@@ -69,7 +70,7 @@ router.get('/:productId', (req, res) => {
       JOIN platforms plat ON pp.platform_id = plat.id
       WHERE pp.product_id = ?
     `).all(productId) as any[]).map(p => {
-      let finalPrice = p.final_price;
+      let finalPrice: number | null = p.final_price;
       let membershipApplied = false;
       let activeMembershipDiscount = 0;
 
@@ -77,42 +78,51 @@ router.get('/:productId', (req, res) => {
       const isZomato = p.platform_code === 'zomato';
 
       let dataProvenance: 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' = 'AUTHORIZED';
+      let status: 'AVAILABLE' | 'AUTH_REQUIRED' | 'NOT_CONFIGURED' | 'UNAVAILABLE' | 'TIMEOUT' = 'AVAILABLE';
       let finalPriceUnavailable = false;
       let unavailabilityReason: string | undefined = undefined;
 
       if (isSwiggy) {
         if (!isSwiggyConnected) {
           dataProvenance = 'INTEGRATION_PENDING';
+          status = 'AUTH_REQUIRED';
           finalPriceUnavailable = true;
-          unavailabilityReason = 'Swiggy MCP integration pending. User OAuth 2.1 authorization required.';
+          finalPrice = null;
+          unavailabilityReason = 'Swiggy authorization is required';
         } else {
           dataProvenance = 'LIVE';
+          status = 'AVAILABLE';
           finalPriceUnavailable = false;
         }
       } else if (isZomato) {
         if (!isZomatoAuthorized) {
           dataProvenance = 'INTEGRATION_PENDING';
+          status = 'NOT_CONFIGURED';
           finalPriceUnavailable = true;
-          unavailabilityReason = 'Authorized Zomato API access required (ZOMATO_API_KEY missing). Integration pending merchant partner credentials.';
+          finalPrice = null;
+          unavailabilityReason = 'Authorized Zomato API access is not configured';
         } else {
           dataProvenance = 'AUTHORIZED';
+          status = 'AVAILABLE';
           finalPriceUnavailable = false;
         }
+      } else {
+        status = p.availability ? 'AVAILABLE' : 'UNAVAILABLE';
       }
 
       // Membership discounts only apply if authorized platform connection establishes it
-      if (hasMembership && !finalPriceUnavailable) {
+      if (hasMembership && !finalPriceUnavailable && finalPrice !== null) {
         if (isSwiggy && isSwiggyConnected) {
           activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
-          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
           membershipApplied = true;
         } else if (isZomato && isZomatoAuthorized) {
           activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
-          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
           membershipApplied = true;
         } else if (p.platform_code === 'eatclub') {
           activeMembershipDiscount = p.membership_discount || 0;
-          finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+          finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
           membershipApplied = true;
         }
       }
@@ -124,6 +134,13 @@ router.get('/:productId', (req, res) => {
       return {
         ...p,
         addons: 0,
+        status,
+        status_message: unavailabilityReason,
+        item_price: finalPriceUnavailable ? null : p.item_price,
+        delivery_fee: finalPriceUnavailable ? null : p.delivery_fee,
+        platform_fee: finalPriceUnavailable ? null : p.platform_fee,
+        packaging_fee: finalPriceUnavailable ? null : p.packaging_fee,
+        taxes: finalPriceUnavailable ? null : p.taxes,
         final_price: finalPrice,
         final_price_unavailable: finalPriceUnavailable,
         unavailability_reason: unavailabilityReason,
@@ -155,18 +172,18 @@ router.get('/:productId', (req, res) => {
       availability: Boolean(p.availability),
       itemPrice: p.item_price,
       addonTotal: 0,
-      deliveryFee: p.final_price_unavailable ? 'Unavailable' : p.delivery_fee,
-      platformFee: p.final_price_unavailable ? 'Unavailable' : p.platform_fee,
-      packagingFee: p.final_price_unavailable ? 'Unavailable' : p.packaging_fee,
-      taxes: p.final_price_unavailable ? 'Unavailable' : p.taxes,
+      deliveryFee: p.delivery_fee,
+      platformFee: p.platform_fee,
+      packagingFee: p.packaging_fee,
+      taxes: p.taxes,
       discount: p.discount,
       couponDiscount: p.membership_applied ? p.active_membership_discount : 0,
       potentialDiscounts: p.final_price_unavailable ? ['Promotional discounts verified upon live session'] : [],
       subtotal: p.item_price,
-      finalPrice: p.final_price_unavailable ? 'Unavailable' : p.final_price,
+      finalPrice: p.final_price,
       currency: p.currency,
       fetchedAt: p.updated_at,
-      dataStatus: p.data_provenance,
+      dataStatus: p.status,
       unavailabilityReason: p.unavailability_reason,
       orderUrl: p.order_url
     }));
@@ -267,8 +284,8 @@ router.get('/:productId', (req, res) => {
   }
 });
 
-// POST /api/compare/search - Standardized Search Contract
-router.post('/search', (req, res) => {
+// Handler for both POST /api/compare and POST /api/compare/search
+const handleCompareSearch = async (req: any, res: any) => {
   try {
     const {
       query,
@@ -321,21 +338,13 @@ router.post('/search', (req, res) => {
       locCity = 'Bangalore';
     }
 
-    // Safe debug logging in development without sensitive secrets
-    console.log('[CompareSearch Express]', {
-      query: searchQuery,
-      category,
-      location: { area: locArea, city: locCity, pincode: locPincode },
-      platforms: platform || platforms
-    });
-
     // Check Swiggy connection status for this user
     const swiggyStatus = SwiggyMcpClient.getInstance().getStatus(userId);
     const isSwiggyConnected = swiggyStatus.connected && swiggyStatus.status === 'AUTHORIZED';
     const isZomatoAuthorized = Boolean(process.env.ZOMATO_API_KEY && process.env.ZOMATO_API_KEY.trim().length > 0);
 
     const swiggyState = isSwiggyConnected ? 'LIVE' : 'AUTH_REQUIRED';
-    const zomatoState = isZomatoAuthorized ? 'LIVE' : 'INTEGRATION_PENDING';
+    const zomatoState = isZomatoAuthorized ? 'LIVE' : 'NOT_CONFIGURED';
 
     const platformStatus = {
       swiggy: swiggyState,
@@ -344,26 +353,14 @@ router.post('/search', (req, res) => {
       direct: 'LIVE'
     };
 
-    // If both query and category are empty, return structured empty results
-    if (!searchQuery && !category) {
-      return res.json({
-        success: true,
-        query: '',
-        category: null,
-        location: locArea || 'Indiranagar',
-        count: 0,
-        results: [],
-        data: [],
-        platformStatus,
-        platforms: [
-          { platform: 'swiggy', status: swiggyState, results: [] },
-          { platform: 'zomato', status: zomatoState, results: [] },
-          { platform: 'eatclub', status: 'LIVE', results: [] },
-          { platform: 'direct', status: 'LIVE', results: [] }
-        ],
-        fetchedAt: new Date().toISOString()
-      });
-    }
+    // Execute deep live comparison using ComparisonService
+    const comparisonResponse = await ComparisonService.compare({
+      query: searchQuery,
+      location: locArea || 'Indiranagar',
+      area: locArea || 'Indiranagar',
+      city: locCity,
+      userId
+    });
 
     let isVeg: boolean | undefined = undefined;
     if (vegOnly === true) isVeg = true;
@@ -413,8 +410,8 @@ router.post('/search', (req, res) => {
     res.json({
       success: true,
       query: searchQuery,
-      category: category,
       location: locArea || 'Indiranagar',
+      items: comparisonResponse.items,
       count: results.length,
       results: results,
       data: results,
@@ -429,6 +426,12 @@ router.post('/search', (req, res) => {
       message: 'FoodCompare server encountered an unexpected error. Please try again.'
     });
   }
-});
+};
+
+// POST /api/compare - Standardized Comparison Contract
+router.post('/', handleCompareSearch);
+
+// POST /api/compare/search - Standardized Search Contract
+router.post('/search', handleCompareSearch);
 
 export default router;

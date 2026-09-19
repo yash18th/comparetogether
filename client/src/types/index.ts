@@ -10,14 +10,16 @@ export interface Platform {
 export interface PlatformPrice {
   id: string;
   platform_id: string;
-  item_price: number;
-  delivery_fee: number;
+  status?: 'AVAILABLE' | 'AUTH_REQUIRED' | 'NOT_CONFIGURED' | 'UNAVAILABLE' | 'TIMEOUT';
+  status_message?: string;
+  item_price: number | null;
+  delivery_fee: number | null;
   addons?: number;
-  platform_fee: number;
-  packaging_fee: number;
-  taxes: number;
-  discount: number;
-  final_price: number;
+  platform_fee: number | null;
+  packaging_fee: number | null;
+  taxes: number | null;
+  discount: number | null;
+  final_price: number | null | string;
   final_price_unavailable?: boolean;
   unavailability_reason?: string;
   data_provenance?: 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING';

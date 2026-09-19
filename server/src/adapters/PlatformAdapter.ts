@@ -1,4 +1,4 @@
-export type PlatformDataStatus = 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' | 'AUTH_REQUIRED';
+export type PlatformDataStatus = 'AVAILABLE' | 'AUTH_REQUIRED' | 'NOT_CONFIGURED' | 'UNAVAILABLE' | 'TIMEOUT' | 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'INTEGRATION_PENDING';
 export type PlatformDataProvenance = PlatformDataStatus;
 
 export interface PlatformMetadata {
@@ -60,20 +60,20 @@ export interface NormalizedPlatformProduct {
   addons?: any[];
   availability: boolean;
 
-  itemPrice: number;
+  itemPrice: number | null;
   addonTotal: number;
 
-  deliveryFee: number | 'Unavailable';
-  platformFee: number | 'Unavailable';
-  packagingFee: number | 'Unavailable';
-  taxes: number | 'Unavailable';
+  deliveryFee: number | null | 'Unavailable';
+  platformFee: number | null | 'Unavailable';
+  packagingFee: number | null | 'Unavailable';
+  taxes: number | null | 'Unavailable';
 
   discount: number;
   couponDiscount: number;
   potentialDiscounts?: string[];
 
-  subtotal: number;
-  finalPrice: number | 'Unavailable';
+  subtotal: number | null;
+  finalPrice: number | null | 'Unavailable';
 
   currency: string;
   fetchedAt: string;

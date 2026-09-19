@@ -29,15 +29,15 @@ export interface ComparedProductSummary {
   maxSavings: number; // You save ₹X compared with the highest available total
   savingsText: string;
   cartComparison?: {
-    itemPrice: Record<string, number>;
+    itemPrice: Record<string, number | null>;
     addons: Record<string, number>;
-    deliveryFee: Record<string, number | 'Unavailable'>;
-    platformFee: Record<string, number | 'Unavailable'>;
-    packagingFee: Record<string, number | 'Unavailable'>;
-    taxes: Record<string, number | 'Unavailable'>;
+    deliveryFee: Record<string, number | null | 'Unavailable'>;
+    platformFee: Record<string, number | null | 'Unavailable'>;
+    packagingFee: Record<string, number | null | 'Unavailable'>;
+    taxes: Record<string, number | null | 'Unavailable'>;
     discounts: Record<string, number>;
     potentialDiscounts: Record<string, string[]>;
-    finalPayable: Record<string, number | 'Unavailable'>;
+    finalPayable: Record<string, number | null | 'Unavailable'>;
   };
 }
 
@@ -109,9 +109,7 @@ export class NormalizationEngine {
       ? `You save ₹${maxSavings} compared with the highest verified total.`
       : verifiedPrices.length >= 2
         ? 'Verified prices are identical across platforms.'
-        : verifiedPrices.length === 1
-          ? 'Transparent pricing shown for 1 platform. Other platforms pending checkout session.'
-          : 'Transparent item prices shown. Some platform checkout fees require live session.';
+        : 'Platform price unavailable';
 
     // Portion calculations if portionSize is available and > 0
     let portionComparison = undefined;

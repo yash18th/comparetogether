@@ -15,8 +15,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleFavorite,
   onOpenDetails
 }) => {
-  // Find cheapest platform
-  const cheapestPrice = item.prices.find(p => p.final_price === item.lowestFinalPrice && p.final_price > 0);
+  // Find cheapest platform ONLY when at least two platforms returned verified final prices
+  const validPrices = item.prices.filter(p => !p.final_price_unavailable && p.final_price !== null && p.final_price !== 'Unavailable' && Number(p.final_price) > 0);
+  const hasMultipleValidPrices = validPrices.length >= 2;
+  const cheapestPrice = hasMultipleValidPrices
+    ? item.prices.find(p => Number(p.final_price) === item.lowestFinalPrice && item.lowestFinalPrice > 0)
+    : null;
 
   return (
     <article className="product-card">
@@ -83,7 +87,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Multi-Platform Comparison Strip */}
         <div className="platform-comparison-strip">
           {item.prices.map((p) => {
-            const isCheapest = p.final_price === item.lowestFinalPrice && p.final_price > 0;
+            const hasValidFinalPrice = !p.final_price_unavailable && p.final_price !== null && p.final_price !== 'Unavailable' && Number(p.final_price) > 0;
+            const isCheapest = hasMultipleValidPrices && Number(p.final_price) === item.lowestFinalPrice;
 
             return (
               <div
@@ -105,20 +110,46 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </div>
 
                 <div className="platform-price-numbers">
-                  <div className="final-price-tag" style={{ color: isCheapest ? 'var(--accent-emerald)' : 'var(--text-primary)' }}>
-                    ₹{p.final_price}
-                  </div>
-                  <div className="item-price-subtext">
-                    ₹{p.item_price} + ₹{p.delivery_fee} del
-                  </div>
+                  {hasValidFinalPrice ? (
+                    <>
+                      <div className="final-price-tag" style={{ color: isCheapest ? 'var(--accent-emerald)' : 'var(--text-primary)' }}>
+                        ₹{p.final_price} final
+                      </div>
+                      {p.item_price !== null && p.delivery_fee !== null && (
+                        <div className="item-price-subtext">
+                          ₹{p.item_price} + ₹{p.delivery_fee} del
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ textAlign: 'right' }}>
+                      {p.status === 'AUTH_REQUIRED' ? (
+                        <span style={{ fontSize: '0.72rem', color: '#fc8019', fontWeight: 600, background: 'rgba(252, 128, 25, 0.1)', padding: '2px 6px', borderRadius: 4 }}>
+                          Authorization required
+                        </span>
+                      ) : p.status === 'NOT_CONFIGURED' ? (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, background: 'rgba(255, 255, 255, 0.06)', padding: '2px 6px', borderRadius: 4 }}>
+                          Not configured
+                        </span>
+                      ) : p.status === 'TIMEOUT' ? (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--accent-amber)', fontWeight: 500 }}>
+                          Temporarily unavailable
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {p.unavailability_reason?.includes('No matching') ? 'No matching item' : 'Platform price unavailable'}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Savings Badge */}
-        {item.maxSavings > 0 && (
+        {/* Savings Badge - Only shown when at least 2 platforms returned valid comparable prices */}
+        {hasMultipleValidPrices && item.maxSavings > 0 && (
           <div className="savings-banner">
             <Sparkles size={14} />
             <span>You save <strong>₹{item.maxSavings}</strong> vs highest platform</span>
@@ -135,7 +166,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             Compare Details
           </button>
 
-          {cheapestPrice && (
+          {cheapestPrice ? (
             <a
               href={cheapestPrice.order_url}
               target="_blank"
@@ -146,7 +177,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span>Order on {cheapestPrice.platform_name.split(' ')[0]}</span>
               <ExternalLink size={14} />
             </a>
-          )}
+          ) : validPrices.length > 0 ? (
+            <a
+              href={validPrices[0].order_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+              style={{ flex: 1, fontSize: '0.85rem', textDecoration: 'none' }}
+            >
+              <span>Order ({validPrices[0].platform_name.split(' ')[0]})</span>
+              <ExternalLink size={14} />
+            </a>
+          ) : null}
         </div>
       </div>
     </article>

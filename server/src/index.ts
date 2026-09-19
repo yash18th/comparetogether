@@ -61,6 +61,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 FoodCompare backend running on http://localhost:${PORT}`);
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`🚀 FoodCompare backend running on http://0.0.0.0:${PORT}`);
 });

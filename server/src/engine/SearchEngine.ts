@@ -169,32 +169,48 @@ export class SearchEngine {
 
         let finalPriceUnavailable = false;
         let dataProvenance: 'LIVE' | 'AUTHORIZED' | 'MOCK' | 'UNAVAILABLE' | 'INTEGRATION_PENDING' = 'AUTHORIZED';
+        let status: 'AVAILABLE' | 'AUTH_REQUIRED' | 'NOT_CONFIGURED' | 'UNAVAILABLE' | 'TIMEOUT' = 'AVAILABLE';
+        let statusMessage: string | undefined = undefined;
 
         if (isSwiggy) {
-          finalPriceUnavailable = !isSwiggyConnected;
-          dataProvenance = isSwiggyConnected ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+          if (!isSwiggyConnected) {
+            finalPriceUnavailable = true;
+            dataProvenance = 'INTEGRATION_PENDING';
+            status = 'AUTH_REQUIRED';
+            statusMessage = 'Swiggy authorization is required';
+          } else {
+            status = 'AVAILABLE';
+          }
         } else if (isZomato) {
-          finalPriceUnavailable = !isZomatoAuthorized;
-          dataProvenance = isZomatoAuthorized ? 'AUTHORIZED' : 'INTEGRATION_PENDING';
+          if (!isZomatoAuthorized) {
+            finalPriceUnavailable = true;
+            dataProvenance = 'INTEGRATION_PENDING';
+            status = 'NOT_CONFIGURED';
+            statusMessage = 'Authorized Zomato API access is not configured';
+          } else {
+            status = 'AVAILABLE';
+          }
+        } else {
+          status = p.availability ? 'AVAILABLE' : 'UNAVAILABLE';
         }
 
         // Recalculate only if user enabled membership AND platform is authorized
-        let finalPrice = p.final_price;
+        let finalPrice: number | null = finalPriceUnavailable ? null : p.final_price;
         let membershipApplied = false;
         let activeMembershipDiscount = 0;
 
-        if (params.hasMembership && !finalPriceUnavailable) {
+        if (params.hasMembership && !finalPriceUnavailable && finalPrice !== null) {
           if (isSwiggy && isSwiggyConnected) {
             activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
-            finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+            finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
             membershipApplied = true;
           } else if (isZomato && isZomatoAuthorized) {
             activeMembershipDiscount = Math.round(p.item_price * 0.10) + p.delivery_fee;
-            finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+            finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
             membershipApplied = true;
           } else if (p.platform_code === 'eatclub') {
             activeMembershipDiscount = p.membership_discount || 0;
-            finalPrice = Math.max(0, p.final_price - activeMembershipDiscount);
+            finalPrice = Math.max(0, finalPrice - activeMembershipDiscount);
             membershipApplied = true;
           }
         }
@@ -202,28 +218,43 @@ export class SearchEngine {
         return {
           ...p,
           addons: 0,
+          status,
+          status_message: statusMessage,
+          item_price: finalPriceUnavailable ? null : p.item_price,
+          delivery_fee: finalPriceUnavailable ? null : p.delivery_fee,
+          platform_fee: finalPriceUnavailable ? null : p.platform_fee,
+          packaging_fee: finalPriceUnavailable ? null : p.packaging_fee,
+          taxes: finalPriceUnavailable ? null : p.taxes,
           final_price: finalPrice,
           final_price_unavailable: finalPriceUnavailable,
+          unavailability_reason: statusMessage,
           data_provenance: dataProvenance,
           membership_applied: membershipApplied,
           membership_discount: activeMembershipDiscount || p.membership_discount
         };
       });
 
-      // Find lowest and highest prices (only across verified prices for final totals)
+      // Find lowest and highest prices strictly across platforms with verified valid final prices
       const validPrices = prices.filter(p => p.availability);
-      const verifiedFinalPrices = validPrices.filter(p => !p.final_price_unavailable && p.final_price > 0);
+      const verifiedFinalPrices = validPrices.filter(p => !p.final_price_unavailable && p.final_price !== null && p.final_price > 0);
 
-      const lowestFinal = verifiedFinalPrices.length > 0 ? Math.min(...verifiedFinalPrices.map(p => p.final_price)) : 0;
-      const highestFinal = verifiedFinalPrices.length > 0 ? Math.max(...verifiedFinalPrices.map(p => p.final_price)) : 0;
-      const lowestItem = validPrices.length > 0 ? Math.min(...validPrices.map(p => p.item_price)) : 0;
+      // Only calculate lowest/highest among platforms that actually returned valid prices
+      const lowestFinal = verifiedFinalPrices.length > 0 ? Math.min(...verifiedFinalPrices.map(p => p.final_price!)) : 0;
+      const highestFinal = verifiedFinalPrices.length > 0 ? Math.max(...verifiedFinalPrices.map(p => p.final_price!)) : 0;
+      const lowestItem = validPrices.filter(p => p.item_price !== null).length > 0
+        ? Math.min(...validPrices.filter(p => p.item_price !== null).map(p => p.item_price!))
+        : 0;
+
+      // Only calculate savings if at least 2 platforms returned valid final prices
       const maxSavings = verifiedFinalPrices.length >= 2 ? Math.max(0, highestFinal - lowestFinal) : 0;
 
       // Normalized price per 100g
       let pricePer100g = null;
       if (item.portion_size && item.portion_size > 0 && item.portion_unit === 'g') {
         const basePrice = lowestFinal > 0 ? lowestFinal : lowestItem;
-        pricePer100g = Math.round((basePrice / item.portion_size) * 100 * 10) / 10;
+        if (basePrice > 0) {
+          pricePer100g = Math.round((basePrice / item.portion_size) * 100 * 10) / 10;
+        }
       }
 
       return {
@@ -234,11 +265,9 @@ export class SearchEngine {
         lowestItemPrice: lowestItem,
         maxSavings,
         pricePer100g,
-        savingsText: maxSavings > 0
-          ? `Save ₹${maxSavings} vs highest verified total`
-          : verifiedFinalPrices.length >= 2
-            ? 'Same price across verified platforms'
-            : 'Multi-platform pricing'
+        savingsText: verifiedFinalPrices.length >= 2
+          ? (maxSavings > 0 ? `Save ₹${maxSavings} vs highest verified total` : 'Same price across verified platforms')
+          : 'Platform price unavailable'
       };
     });
 

@@ -222,4 +222,93 @@ export class ProductMatcher {
       reasons
     };
   }
+
+  /**
+   * Strictly verifies whether two restaurant branches match.
+   * Prevents matching different branches of the same chain (e.g., Nagarjuna Indiranagar vs Nagarjuna Koramangala).
+   */
+  public static matchRestaurantBranch(
+    source: { name: string; branchName?: string; area?: string; city?: string; address?: string },
+    target: { name: string; branchName?: string; area?: string; city?: string; address?: string }
+  ): { confidence: number; isMatch: boolean; reasons: string[] } {
+    const reasons: string[] = [];
+
+    // 1. City check
+    if (source.city && target.city) {
+      const sCity = source.city.trim().toLowerCase();
+      const tCity = target.city.trim().toLowerCase();
+      const sNormCity = sCity === 'bengaluru' ? 'bangalore' : sCity;
+      const tNormCity = tCity === 'bengaluru' ? 'bangalore' : tCity;
+      if (sNormCity !== tNormCity) {
+        return {
+          confidence: 0.0,
+          isMatch: false,
+          reasons: [`City mismatch: ${source.city} vs ${target.city}`]
+        };
+      }
+    }
+
+    // 2. Restaurant Brand / Name Check
+    const sNameTokens = ProductMatcher.tokenize(source.name);
+    const tNameTokens = ProductMatcher.tokenize(target.name);
+    const nameOverlap = sNameTokens.filter(t => tNameTokens.includes(t));
+    const nameDice = ProductMatcher.diceCoefficient(source.name, target.name);
+
+    if (nameOverlap.length === 0 && nameDice < 0.70) {
+      return {
+        confidence: 0.0,
+        isMatch: false,
+        reasons: [`Restaurant brand mismatch: "${source.name}" vs "${target.name}"`]
+      };
+    }
+
+    // 3. Branch / Locality / Area Isolation Check
+    const sBranchStr = `${source.branchName || ''} ${source.area || ''} ${source.address || ''}`.toLowerCase();
+    const tBranchStr = `${target.branchName || ''} ${target.area || ''} ${target.address || ''}`.toLowerCase();
+
+    const sBranchTokens = ProductMatcher.tokenize(sBranchStr);
+    const tBranchTokens = ProductMatcher.tokenize(tBranchStr);
+
+    // If both specify branch/locality, ensure they do not conflict
+    if (sBranchTokens.length > 0 && tBranchTokens.length > 0) {
+      const branchOverlap = sBranchTokens.filter(t => tBranchTokens.includes(t));
+      const branchDice = ProductMatcher.diceCoefficient(sBranchStr, tBranchStr);
+
+      // Known distinct Bangalore areas that must never be merged
+      const DISTINCT_AREAS = [
+        'indiranagar', 'koramangala', 'whitefield', 'hsr', 'jayanagar', 'jp nagar',
+        'bellandur', 'marathahalli', 'electronic city', 'mg road', 'lavelle road',
+        'malleswaram', 'rajajinagar', 'sadashivanagar', 'frazer town', 'kalyan nagar',
+        'kammanahalli', 'bannerghatta', 'sarjapur', 'yelahanka', 'hebbal'
+      ];
+
+      for (const area of DISTINCT_AREAS) {
+        const sHas = sBranchStr.includes(area);
+        const tHas = tBranchStr.includes(area);
+        if (sHas !== tHas && (sHas || tHas)) {
+          return {
+            confidence: 0.0,
+            isMatch: false,
+            reasons: [`Strict branch area mismatch: "${area}" present in only one branch`]
+          };
+        }
+      }
+
+      if (branchOverlap.length === 0 && branchDice < 0.40) {
+        return {
+          confidence: 0.20,
+          isMatch: false,
+          reasons: [`Branch locality mismatch: "${sBranchStr.trim()}" vs "${tBranchStr.trim()}"`]
+        };
+      }
+    }
+
+    const confidence = Math.round(Math.max(nameDice, 0.85) * 100) / 100;
+    return {
+      confidence,
+      isMatch: confidence >= 0.80,
+      reasons: ['Restaurant brand and branch locality match verified']
+    };
+  }
 }
+

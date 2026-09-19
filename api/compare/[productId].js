@@ -1627,13 +1627,15 @@ function getProductComparison(productId, hasMembership = false) {
     return {
       id: pp.id,
       platform_id: pp.platform_id,
-      item_price: pp.item_price,
-      delivery_fee: finalPriceUnavailable ? 'Unavailable' : pp.delivery_fee,
-      platform_fee: finalPriceUnavailable ? 'Unavailable' : pp.platform_fee,
-      packaging_fee: finalPriceUnavailable ? 'Unavailable' : pp.packaging_fee,
-      taxes: finalPriceUnavailable ? 'Unavailable' : pp.taxes,
+      status: isSwiggy ? 'AUTH_REQUIRED' : isZomato ? 'NOT_CONFIGURED' : (isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'),
+      status_message: unavailabilityReason,
+      item_price: finalPriceUnavailable ? null : pp.item_price,
+      delivery_fee: finalPriceUnavailable ? null : pp.delivery_fee,
+      platform_fee: finalPriceUnavailable ? null : pp.platform_fee,
+      packaging_fee: finalPriceUnavailable ? null : pp.packaging_fee,
+      taxes: finalPriceUnavailable ? null : pp.taxes,
       discount: pp.discount,
-      final_price: finalPriceUnavailable ? 'Unavailable' : finalPrice,
+      final_price: finalPriceUnavailable ? null : finalPrice,
       raw_final_price: finalPrice,
       membership_discount: pp.membership_discount,
       membership_type: pp.membership_type,
@@ -1653,12 +1655,12 @@ function getProductComparison(productId, hasMembership = false) {
       membership_applied: membershipApplied
     };
   });
-  const verifiedPrices = prices.filter((p) => !p.final_price_unavailable && p.final_price > 0);
-  const validPrices = prices.filter((p) => p.item_price > 0);
+  const verifiedPrices = prices.filter((p) => !p.final_price_unavailable && p.final_price !== null && p.final_price > 0);
+  const validPrices = prices.filter((p) => p.item_price !== null && p.item_price > 0);
   const cheapestFinal = verifiedPrices.length > 0 ? Math.min(...verifiedPrices.map((p) => p.final_price)) : 0;
   const highestFinal = verifiedPrices.length > 0 ? Math.max(...verifiedPrices.map((p) => p.final_price)) : 0;
   const cheapestItem = validPrices.length > 0 ? Math.min(...validPrices.map((p) => p.item_price)) : 0;
-  const cheapestPlatform = verifiedPrices.length > 0 ? verifiedPrices.find((p) => p.final_price === cheapestFinal)?.platform_code || "" : "";
+  const cheapestPlatform = verifiedPrices.length >= 2 ? verifiedPrices.find((p) => p.final_price === cheapestFinal)?.platform_code || "" : (verifiedPrices.length === 1 ? verifiedPrices[0].platform_code : "");
   const maxSavings = verifiedPrices.length >= 2 ? Math.max(0, highestFinal - cheapestFinal) : 0;
   const comparison = {
     productId: product.id,
@@ -1673,7 +1675,9 @@ function getProductComparison(productId, hasMembership = false) {
     cheapestItemPrice: cheapestItem,
     highestFinalPrice: highestFinal,
     maxSavings,
-    savingsText: maxSavings > 0 ? `You save \u20B9${maxSavings} vs highest verified total` : "Verified prices shown"
+    savingsText: verifiedPrices.length >= 2
+      ? (maxSavings > 0 ? `You save \u20B9${maxSavings} vs highest verified total` : "Verified prices shown")
+      : "Platform price unavailable"
   };
   const priceHistory = PRICE_HISTORY.filter((ph) => ph.product_id === product.id);
   const matches = PRODUCT_MATCHES.filter((pm) => pm.source_product_id === product.id || pm.target_product_id === product.id);

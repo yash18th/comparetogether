@@ -262,10 +262,10 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                             <img src={p.platform_logo} alt={p.platform_name} style={{ width: 16, height: 16, borderRadius: 3 }} />
                             <span>{p.platform_name}</span>
                           </div>
-                          {p.data_provenance === 'INTEGRATION_PENDING' ? (
+                          {p.status === 'AUTH_REQUIRED' || (p.platform_code === 'swiggy' && p.final_price_unavailable) ? (
                             <div>
-                              <span style={{ fontSize: '0.65rem', color: 'var(--accent-amber)', display: 'block', fontWeight: 600, opacity: 0.9 }}>
-                                Integration Pending
+                              <span style={{ fontSize: '0.65rem', color: '#fc8019', display: 'block', fontWeight: 600 }}>
+                                Authorization Required
                               </span>
                               {p.platform_code === 'swiggy' && (
                                 <button
@@ -283,21 +283,29 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                                     cursor: 'pointer'
                                   }}
                                 >
-                                  Compare with Swiggy
+                                  Connect Swiggy
                                 </button>
                               )}
                             </div>
-                          ) : p.data_provenance === 'LIVE' ? (
+                          ) : p.status === 'NOT_CONFIGURED' || (p.platform_code === 'zomato' && p.final_price_unavailable) ? (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 500 }}>
+                              Not Configured
+                            </span>
+                          ) : p.status === 'TIMEOUT' ? (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-amber)', display: 'block', fontWeight: 500 }}>
+                              Temporarily Unavailable
+                            </span>
+                          ) : p.status === 'UNAVAILABLE' ? (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 400 }}>
+                              Unavailable
+                            </span>
+                          ) : p.data_provenance === 'LIVE' || p.status === 'AVAILABLE' ? (
                             <span style={{ fontSize: '0.65rem', color: 'var(--accent-emerald)', display: 'block', fontWeight: 600 }}>
                               Live Verified
                             </span>
-                          ) : p.data_provenance === 'AUTHORIZED' ? (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)', display: 'block', fontWeight: 600 }}>
-                              Official Partner
-                            </span>
                           ) : (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 400 }}>
-                              Unavailable
+                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)', display: 'block', fontWeight: 600 }}>
+                              Verified Partner
                             </span>
                           )}
                         </th>
@@ -308,7 +316,9 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                     <tr>
                       <td>Base Item Listed Price</td>
                       {prices.map(p => (
-                        <td key={p.id} style={{ textAlign: 'right', fontWeight: 600 }}>₹{p.item_price}</td>
+                        <td key={p.id} style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {p.item_price !== null && p.item_price !== undefined ? `₹${p.item_price}` : '—'}
+                        </td>
                       ))}
                     </tr>
                     <tr>
@@ -357,7 +367,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       <td>Government Taxes (GST)</td>
                       {prices.map(p => (
                         <td key={p.id} style={{ textAlign: 'right' }}>
-                          {p.final_price_unavailable ? <span style={{ color: 'var(--text-muted)' }}>—</span> : `₹${p.taxes}`}
+                          {p.final_price_unavailable || p.taxes === null ? <span style={{ color: 'var(--text-muted)' }}>—</span> : `₹${p.taxes}`}
                         </td>
                       ))}
                     </tr>
@@ -365,7 +375,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       <td>Discounts & Coupons</td>
                       {prices.map(p => (
                         <td key={p.id} style={{ textAlign: 'right', color: 'var(--accent-emerald)' }}>
-                          {p.final_price_unavailable ? <span style={{ color: 'var(--text-muted)' }}>—</span> : p.discount > 0 ? `−₹${p.discount}` : '₹0'}
+                          {p.final_price_unavailable || p.discount === null ? <span style={{ color: 'var(--text-muted)' }}>—</span> : (p.discount || 0) > 0 ? `−₹${p.discount}` : '₹0'}
                         </td>
                       ))}
                     </tr>
@@ -382,18 +392,24 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                     <tr className="total-row">
                       <td>Final Payable Price</td>
                       {prices.map(p => {
-                        if (p.final_price_unavailable) {
+                        const hasValidPrice = !p.final_price_unavailable && p.final_price !== null && p.final_price !== 'Unavailable' && Number(p.final_price) > 0;
+                        if (!hasValidPrice) {
+                          const statusLabel = p.status === 'AUTH_REQUIRED' || p.platform_code === 'swiggy'
+                            ? 'Authorization required'
+                            : p.status === 'NOT_CONFIGURED' || p.platform_code === 'zomato'
+                            ? 'API not configured'
+                            : p.status === 'TIMEOUT'
+                            ? 'Temporarily unavailable'
+                            : 'Price unavailable';
                           return (
                             <td key={p.id} style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                              <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Final price unavailable</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--accent-sandstone)', opacity: 0.75, marginBottom: p.platform_code === 'swiggy' ? 6 : 0 }}>
-                                Live checkout session required
-                              </div>
+                              <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{statusLabel}</div>
                               {p.platform_code === 'swiggy' && (
                                 <button
                                   type="button"
                                   onClick={handleCompareWithSwiggy}
                                   style={{
+                                    marginTop: 4,
                                     background: 'linear-gradient(135deg, #fc8019, #e23744)',
                                     color: '#ffffff',
                                     border: 'none',
@@ -408,14 +424,15 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
                                     boxShadow: '0 2px 8px rgba(252, 128, 25, 0.3)'
                                   }}
                                 >
-                                  <span>Compare with Swiggy</span>
+                                  <span>Connect Swiggy</span>
                                   <ExternalLink size={11} />
                                 </button>
                               )}
                             </td>
                           );
                         }
-                        const isCheapest = p.final_price === comparison.cheapestFinalPrice && comparison.cheapestFinalPrice > 0;
+                        const validCount = prices.filter(pr => !pr.final_price_unavailable && pr.final_price !== null && pr.final_price !== 'Unavailable' && Number(pr.final_price) > 0).length;
+                        const isCheapest = validCount >= 2 && p.final_price === comparison.cheapestFinalPrice && comparison.cheapestFinalPrice > 0;
                         return (
                           <td key={p.id} style={{ textAlign: 'right', color: isCheapest ? 'var(--accent-emerald)' : 'inherit' }}>
                             ₹{p.final_price}
