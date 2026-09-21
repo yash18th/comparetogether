@@ -8,10 +8,10 @@ export function getApiBaseUrl(): string {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return 'http://localhost:3001/api';
     }
-    // In production on Vercel, use same-origin /api path (handled by Vercel serverless functions)
-    return `${window.location.origin}/api`;
+    // Deployed Render backend in production
+    return 'https://foodcompare-backend.onrender.com/api';
   }
-  return '/api';
+  return 'https://foodcompare-backend.onrender.com/api';
 }
 
 /**

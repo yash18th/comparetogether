@@ -267,7 +267,7 @@ export class SearchEngine {
         pricePer100g,
         savingsText: verifiedFinalPrices.length >= 2
           ? (maxSavings > 0 ? `Save ₹${maxSavings} vs highest verified total` : 'Same price across verified platforms')
-          : 'Platform price unavailable'
+          : 'Comparison unavailable for some platforms'
       };
     });
 
