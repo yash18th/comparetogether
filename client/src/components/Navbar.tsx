@@ -169,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 style={{ fontSize: '0.85rem' }}
               >
                 <UserIcon size={15} />
-                <span>{user.name.split(' ')[0]}</span>
+                <span>{user.name ? user.name.split(' ')[0] : 'Account'}</span>
               </button>
               <button
                 className="btn-secondary"

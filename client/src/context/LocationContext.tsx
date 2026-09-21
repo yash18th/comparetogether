@@ -56,8 +56,18 @@ export const FALLBACK_SUPPORTED_LOCATIONS = [
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [location, setLocationState] = useState<LocationState>(() => {
-    const saved = localStorage.getItem('fc_loc');
-    return saved ? JSON.parse(saved) : DEFAULT_LOCATION;
+    try {
+      const saved = localStorage.getItem('fc_loc');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.city && parsed.area) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore parse failure and use default
+    }
+    return DEFAULT_LOCATION;
   });
   const [supportedLocations, setSupportedLocations] = useState<any[]>(FALLBACK_SUPPORTED_LOCATIONS);
   const [isDetecting, setIsDetecting] = useState(false);

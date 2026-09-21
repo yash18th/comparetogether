@@ -5,8 +5,9 @@
   "scripts": {
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
-    "build": "cd client && npm install && npm run build",
+    "build": "cd server && npm install && npm run build",
     "build:server": "cd server && npm install && npm run build",
+    "build:client": "cd client && npm install && npm run build",
     "build:all": "cd server && npm install && npm run build && cd ../client && npm install && npm run build",
     "start": "cd server && npm run start",
     "test:engine": "cd server && npx tsx src/test_verification.ts"
