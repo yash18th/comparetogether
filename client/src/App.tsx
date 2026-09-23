@@ -304,6 +304,12 @@ const MainApp: React.FC = () => {
               initialTab={dashboardTab}
               onOpenProduct={(id) => setSelectedProductId(id)}
               onBackToSearch={() => setViewMode('home')}
+              onSearchAgain={(query) => {
+                setSearchQuery(query);
+                setViewMode('search_results');
+                executeSearch(query);
+              }}
+              onOpenAuth={() => setShowAuthModal(true)}
             />
           </div>
         ) : viewMode === 'search_results' ? (

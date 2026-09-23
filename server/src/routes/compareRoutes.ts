@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/database.js';
 import { NormalizationEngine } from '../engine/NormalizationEngine.js';
 import { SearchEngine } from '../engine/SearchEngine.js';
+import { CanonicalFoodEngine } from '../engine/CanonicalFoodModel.js';
+import { MatchingEngine } from '../engine/MatchingEngine.js';
+import { PriceEngine } from '../engine/PriceEngine.js';
 import { SwiggyMcpClient } from '../services/SwiggyMcpClient.js';
 import { NormalizedPlatformProduct } from '../adapters/PlatformAdapter.js';
 import { ComparisonService } from '../services/ComparisonService.js';
@@ -336,6 +339,24 @@ const handleCompareSearch = async (req: any, res: any) => {
     // Normalize Bengaluru to Bangalore
     if (locCity.toLowerCase() === 'bengaluru') {
       locCity = 'Bangalore';
+    }
+
+    // Record search history if user query is present
+    if (searchQuery && searchQuery.length > 1) {
+      try {
+        const histId = `sh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        db.prepare(`
+          INSERT INTO search_history (id, user_id, query, location, created_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(
+          histId,
+          userId !== 'default_user' ? userId : null,
+          searchQuery,
+          locArea ? `${locArea}, ${locCity}` : locCity
+        );
+      } catch (err) {
+        // Silently ignore history insert errors
+      }
     }
 
     // Check Swiggy connection status for this user

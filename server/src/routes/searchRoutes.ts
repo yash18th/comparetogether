@@ -44,9 +44,14 @@ router.get('/', (req, res) => {
     if (q && (q as string).trim().length > 1) {
       try {
         db.prepare(`
-          INSERT INTO search_history (id, query, location)
-          VALUES (?, ?, ?)
-        `).run(`sh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`, (q as string).trim(), area ? `${area}, ${city || 'Bangalore'}` : (city || 'Bangalore'));
+          INSERT INTO search_history (id, user_id, query, location, created_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(
+          `sh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId !== 'default_user' ? userId : null,
+          (q as string).trim(),
+          area ? `${area}, ${city || 'Bangalore'}` : (city || 'Bangalore')
+        );
       } catch (err) {
         // Silently ignore history insert errors
       }

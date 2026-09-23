@@ -5,12 +5,14 @@ export function seedDatabase() {
   initDatabase();
 
   console.log('🌱 Checking seed data...');
-  const userCount = (db.prepare('SELECT COUNT(*) as c FROM users').get() as any).c;
+  const userCount = (db.prepare('SELECT COUNT(*) as c FROM users').get() as any)?.c || 0;
   if (userCount > 0) {
-    console.log('⚡ Database already seeded with', userCount, 'users. Refreshing platforms and seed records...');
+    console.log(`⚡ Database already seeded with ${userCount} users. Preserving existing user data and records.`);
+    return;
   }
 
-  // Clear existing tables for fresh pristine seed
+  console.log('🌱 Seeding initial database records...');
+  // Clear existing tables for fresh pristine initial seed
   db.exec(`
     DELETE FROM price_alerts;
     DELETE FROM favorites;

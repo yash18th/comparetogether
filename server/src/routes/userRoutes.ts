@@ -115,15 +115,93 @@ router.delete('/alerts/:alertId', requireAuth, (req: any, res) => {
 });
 
 // 3. Search History
-router.get('/history', (req, res) => {
-  const history = db.prepare(`
-    SELECT id, query, location, created_at
-    FROM search_history
-    ORDER BY created_at DESC
-    LIMIT 10
-  `).all();
+router.get('/history', (req: any, res) => {
+  let userId: string | null = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch {
+      // Ignored if token expired or invalid
+    }
+  }
+
+  let history: any[];
+  if (userId) {
+    history = db.prepare(`
+      SELECT id, user_id, query, location, created_at
+      FROM search_history
+      WHERE user_id = ? OR user_id IS NULL
+      ORDER BY created_at DESC
+      LIMIT 20
+    `).all(userId);
+  } else {
+    history = db.prepare(`
+      SELECT id, user_id, query, location, created_at
+      FROM search_history
+      ORDER BY created_at DESC
+      LIMIT 20
+    `).all();
+  }
 
   res.json({ success: true, data: history });
+});
+
+router.post('/history', (req: any, res) => {
+  const { query, location } = req.body;
+  if (!query || !query.trim()) {
+    return res.status(400).json({ success: false, message: 'query is required' });
+  }
+
+  let userId: string | null = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch {
+      // Ignored
+    }
+  }
+
+  const id = `sh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  db.prepare(`
+    INSERT INTO search_history (id, user_id, query, location, created_at)
+    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `).run(id, userId, query.trim(), location || 'Indiranagar, Bangalore');
+
+  res.json({ success: true, id, message: 'Search history recorded' });
+});
+
+router.delete('/history/:id', (req: any, res) => {
+  const { id } = req.params;
+  db.prepare('DELETE FROM search_history WHERE id = ?').run(id);
+  res.json({ success: true, message: 'Search history item removed' });
+});
+
+router.delete('/history', (req: any, res) => {
+  let userId: string | null = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch {
+      // Ignored
+    }
+  }
+
+  if (userId) {
+    db.prepare('DELETE FROM search_history WHERE user_id = ?').run(userId);
+  } else {
+    db.prepare('DELETE FROM search_history').run();
+  }
+
+  res.json({ success: true, message: 'Search history cleared' });
 });
 
 export default router;

@@ -105,7 +105,7 @@ export class NormalizationEngine {
     }
 
     const maxSavings = verifiedPrices.length >= 2 ? Math.max(0, highestFinal - cheapestFinal) : 0;
-    const cheapestPlatformCode = verifiedPrices.length >= 2 ? cheapestPlatform : '';
+    const cheapestPlatformCode = verifiedPrices.length >= 1 ? cheapestPlatform : '';
     const savingsText = verifiedPrices.length >= 2 && maxSavings > 0
       ? `You save ₹${maxSavings} compared with the highest verified total.`
       : verifiedPrices.length >= 2

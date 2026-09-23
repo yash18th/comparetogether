@@ -7,10 +7,18 @@ import { useAuth } from '../context/AuthContext';
 interface UserDashboardProps {
   onOpenProduct: (productId: string) => void;
   onBackToSearch: () => void;
+  onSearchAgain?: (query: string, location?: string) => void;
+  onOpenAuth?: () => void;
   initialTab?: 'favorites' | 'alerts' | 'history';
 }
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenProduct, onBackToSearch, initialTab = 'favorites' }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({
+  onOpenProduct,
+  onBackToSearch,
+  onSearchAgain,
+  onOpenAuth,
+  initialTab = 'favorites'
+}) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'favorites' | 'alerts' | 'history'>(initialTab);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
@@ -57,7 +65,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenProduct, onB
         <div>
           <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>User Account & Insights</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-            Logged in as <strong>{user?.name}</strong> ({user?.email})
+            {user ? (
+              <>
+                Logged in as <strong>{user.name || user.email}</strong> {user.name && user.email ? `(${user.email})` : ''}
+              </>
+            ) : (
+              <>Guest session &bull; Sign in to sync your saved items and price drop alerts</>
+            )}
           </p>
         </div>
 
@@ -65,6 +79,36 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenProduct, onB
           ← Back to Search
         </button>
       </div>
+
+      {/* Guest Notice if not authenticated */}
+      {!user && (
+        <div className="glass-panel" style={{
+          padding: '14px 20px',
+          marginBottom: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          borderLeft: '4px solid var(--accent-gold)'
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Guest Mode</div>
+            <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+              Sign in to save favorite dishes, create price drop monitors, and sync your searches across devices.
+            </div>
+          </div>
+          {onOpenAuth && (
+            <button
+              type="button"
+              className="btn-gold"
+              style={{ fontSize: '0.82rem', padding: '6px 14px', whiteSpace: 'nowrap' }}
+              onClick={onOpenAuth}
+            >
+              Sign In / Register
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="dashboard-tabs">
@@ -224,29 +268,88 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenProduct, onB
         </div>
       ) : (
         <div className="glass-panel" style={{ padding: 20 }}>
-          <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 14 }}>Recent Search Queries</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Recent Search Queries</h4>
+            {history.length > 0 && (
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                onClick={async () => {
+                  await api.deleteSearchHistory();
+                  setHistory([]);
+                }}
+              >
+                Clear History
+              </button>
+            )}
+          </div>
+
           {history.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }}>No recent searches recorded.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {history.map(h => (
                 <div
                   key={h.id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: 6,
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    borderRadius: 8,
                     background: 'var(--bg-glass)',
+                    border: '1px solid var(--border-glass)',
                     fontSize: '0.9rem'
                   }}
                 >
-                  <div>
-                    <strong>"{h.query}"</strong> in <span style={{ color: 'var(--text-secondary)' }}>{h.location}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div>
+                      <strong style={{ color: 'var(--accent-gold)' }}>"{h.query}"</strong>
+                      {h.location && (
+                        <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                          in {h.location}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {new Date(h.created_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {new Date(h.created_at).toLocaleDateString()}
-                  </span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn-gold"
+                      style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+                      onClick={() => {
+                        if (onSearchAgain) {
+                          onSearchAgain(h.query, h.location);
+                        } else {
+                          onBackToSearch();
+                        }
+                      }}
+                    >
+                      Compare Prices →
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '6px 10px', color: 'var(--accent-rose)' }}
+                      title="Remove search"
+                      onClick={async () => {
+                        await api.deleteSearchHistory(h.id);
+                        setHistory(prev => prev.filter(x => x.id !== h.id));
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

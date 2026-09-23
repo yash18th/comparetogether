@@ -9,9 +9,9 @@ export function getApiBaseUrl(): string {
       return 'http://localhost:3001/api';
     }
     // Deployed Render backend in production
-    return 'https://foodcompare-backend.onrender.com/api';
+    return 'https://comparetogether.onrender.com/api';
   }
-  return 'https://foodcompare-backend.onrender.com/api';
+  return 'https://comparetogether.onrender.com/api';
 }
 
 /**
@@ -299,11 +299,24 @@ export const api = {
 
   getSearchHistory: async () => {
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/user/history`, {}, 6000);
+      const res = await fetchWithTimeout(`${API_BASE}/user/history`, { headers: getAuthHeader() }, 6000);
       const data = await res.json();
       return data.data || [];
     } catch {
       return [];
+    }
+  },
+
+  deleteSearchHistory: async (id?: string) => {
+    try {
+      const url = id ? `${API_BASE}/user/history/${id}` : `${API_BASE}/user/history`;
+      const res = await fetchWithTimeout(url, {
+        method: 'DELETE',
+        headers: getAuthHeader()
+      }, 6000);
+      return res.json();
+    } catch {
+      return { success: false };
     }
   },
 

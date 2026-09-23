@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { seedDatabase } from './db/seed.js';
+import { db } from './db/database.js';
+import { AdapterRegistry } from './adapters/AdapterRegistry.js';
 
 import searchRoutes from './routes/searchRoutes.js';
 import compareRoutes from './routes/compareRoutes.js';
@@ -18,9 +20,13 @@ const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:4173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:4173',
   'https://comparetogether.vercel.app',
+  'https://comparetogether.in',
+  'https://www.comparetogether.in',
   process.env.CORS_ORIGIN
 ].filter(Boolean) as string[];
 
@@ -40,7 +46,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Initialize & Seed Database
+// Initialize & Seed Database safely
 seedDatabase();
 
 // Route Mounts
@@ -52,13 +58,47 @@ app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/integrations/swiggy', swiggyRoutes);
 
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
+// Health check handler with DB and provider status verification
+const getHealthStatus = () => {
+  let dbStatus = 'healthy';
+  try {
+    db.prepare('SELECT 1').get();
+  } catch (err: any) {
+    dbStatus = `unhealthy: ${err.message}`;
+  }
+
+  let providers: any[] = [];
+  try {
+    const registry = AdapterRegistry.getInstance();
+    providers = registry.getSupportedPlatforms().map(p => ({
+      code: p.code,
+      name: p.name,
+      status: 'AVAILABLE'
+    }));
+  } catch (err) {
+    providers = [];
+  }
+
+  const isHealthy = dbStatus === 'healthy';
+
+  return {
+    status: isHealthy ? 'ok' : 'degraded',
     service: 'FoodCompare',
     version: '1.0.0',
+    database: dbStatus,
+    providers,
     timestamp: new Date().toISOString()
-  });
+  };
+};
+
+app.get('/health', (req, res) => {
+  const health = getHealthStatus();
+  res.status(health.status === 'ok' ? 200 : 503).json(health);
+});
+
+app.get('/api/health', (req, res) => {
+  const health = getHealthStatus();
+  res.status(health.status === 'ok' ? 200 : 503).json(health);
 });
 
 app.listen(Number(PORT), '0.0.0.0', () => {

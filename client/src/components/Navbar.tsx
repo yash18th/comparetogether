@@ -44,17 +44,27 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const scrollToHowItWorks = () => {
     setMobileMenuOpen(false);
-    const elem = document.getElementById('how-it-works');
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
+    if (viewMode !== 'home') {
+      onStartComparing();
+      setTimeout(() => {
+        const elem = document.getElementById('how-it-works');
+        if (elem) {
+          elem.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+    } else {
+      const elem = document.getElementById('how-it-works');
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
   return (
     <header className="navbar">
       <div className="navbar-inner">
-        {/* Brand Wordmark */}
-        <div className="brand-wordmark" onClick={() => onToggleDashboard()}>
+        {/* Brand Wordmark - navigates directly to Home */}
+        <div className="brand-wordmark" onClick={onStartComparing} title="FoodCompare Home">
           <div className="brand-crest">
             <span style={{ fontSize: '1rem', fontWeight: 800 }}>FC</span>
           </div>
