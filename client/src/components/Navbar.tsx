@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ShieldCheck, User as UserIcon, Moon, Sun, Settings, Menu, X, ArrowRight } from 'lucide-react';
+import { 
+  MapPin, 
+  User as UserIcon, 
+  Moon, 
+  Sun, 
+  Settings, 
+  Menu, 
+  X, 
+  ArrowRight,
+  Compass,
+  HelpCircle,
+  Bell,
+  Heart,
+  LogOut,
+  ChevronDown
+} from 'lucide-react';
 import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
-import { useMembership } from '../context/MembershipContext';
 import { api, getApiBaseUrl } from '../services/api';
 
 interface NavbarProps {
   onOpenLocation: () => void;
   onOpenAuth: () => void;
-  onToggleDashboard: (tab?: 'favorites' | 'alerts') => void;
+  onToggleDashboard: (tab?: 'favorites' | 'alerts' | 'history') => void;
   onToggleAdmin: () => void;
   onStartComparing: () => void;
   viewMode: 'home' | 'search_results' | 'dashboard' | 'admin';
@@ -28,14 +42,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { location } = useLocation();
   const { user, logout } = useAuth();
-  const { hasMembership, toggleMembership } = useMembership();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [swiggyConnected, setSwiggyConnected] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     api.getSwiggyStatus().then(status => {
-      setSwiggyConnected(Boolean(status?.connected));
+      if (isMounted) {
+        setSwiggyConnected(Boolean(status?.connected));
+      }
     }).catch(() => {});
+    return () => { isMounted = false; };
   }, []);
 
   const handleConnectSwiggy = () => {
@@ -60,161 +77,375 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const handleNavClick = (action: () => void) => {
+    setMobileMenuOpen(false);
+    action();
+  };
+
   return (
-    <header className="navbar">
-      <div className="navbar-inner">
-        {/* Brand Wordmark - navigates directly to Home */}
-        <div className="brand-wordmark" onClick={onStartComparing} title="FoodCompare Home">
-          <div className="brand-crest">
-            <span style={{ fontSize: '1rem', fontWeight: 800 }}>FC</span>
-          </div>
-          <div className="brand-title">
-            Food<span>Compare</span>
+    <header className="navbar" role="banner">
+      <div className="navbar-container">
+        
+        {/* ===================================================
+            GROUP 1: BRAND / LOGO
+           =================================================== */}
+        <div className="brand-group">
+          <div 
+            className="brand-wordmark" 
+            onClick={onStartComparing} 
+            role="button" 
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onStartComparing(); }}
+            title="FoodCompare — Return to Home"
+            aria-label="FoodCompare Home"
+          >
+            <div className="brand-crest">
+              <span className="brand-crest-text">FC</span>
+            </div>
+            <div className="brand-title">
+              Food<span>Compare</span>
+            </div>
           </div>
         </div>
 
-        {/* Desktop Navigation Links */}
-        <nav className="nav-links">
+        {/* ===================================================
+            GROUP 2: PRIMARY NAVIGATION (DESKTOP)
+           =================================================== */}
+        <nav className="primary-nav" aria-label="Primary Navigation">
           <button
             type="button"
-            className={`nav-link-item ${viewMode === 'home' ? 'active' : ''}`}
+            className={`nav-link-btn ${viewMode === 'home' ? 'active' : ''}`}
             onClick={onStartComparing}
           >
             Compare
           </button>
           <button
             type="button"
-            className="nav-link-item"
+            className="nav-link-btn"
             onClick={scrollToHowItWorks}
           >
             How It Works
           </button>
           <button
             type="button"
-            className="nav-link-item"
+            className="nav-link-btn"
             onClick={() => onToggleDashboard('alerts')}
           >
             Price Alerts
           </button>
           <button
             type="button"
-            className="nav-link-item"
+            className="nav-link-btn"
             onClick={() => onToggleDashboard('favorites')}
           >
             Favorites
           </button>
         </nav>
 
-        {/* Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Location Selector Pill */}
-          <button className="location-pill" onClick={onOpenLocation} title="Change delivery location">
-            <MapPin size={15} color="var(--accent-gold)" />
-            <span style={{ fontWeight: 600 }}>{location.area || location.city}</span>
-          </button>
+        {/* ===================================================
+            GROUPS 3, 4, 5: UTILITIES & ACTIONS (DESKTOP)
+           =================================================== */}
+        <div className="header-utilities-wrapper">
+          
+          {/* GROUP 3: Location / Settings */}
+          <div className="utility-cluster location-settings-cluster">
+            <button 
+              type="button"
+              className="location-pill-btn" 
+              onClick={onOpenLocation} 
+              title={`Delivery location: ${location.area || location.city}. Click to change.`}
+              aria-label="Change delivery location"
+            >
+              <MapPin size={14} className="location-icon" />
+              <span className="location-name">{location.area || location.city}</span>
+              <ChevronDown size={13} className="location-caret" />
+            </button>
 
-          {/* VIP Membership Toggle */}
-          <button
-            className={`membership-toggle ${hasMembership ? 'active' : ''}`}
-            onClick={toggleMembership}
-            title="Toggle Swiggy One / Zomato Gold Member Pricing"
-            style={{ display: 'none' }} // Hidden on small screens or keep clean
-          >
-            <ShieldCheck size={15} />
-            <span>{hasMembership ? 'VIP Active' : 'Public'}</span>
-          </button>
+            <button
+              type="button"
+              className="theme-circle-toggle"
+              onClick={onToggleTheme}
+              title={theme === 'dark' ? "Switch to light theme" : "Switch to dark theme"}
+              aria-label="Toggle visual theme"
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+          </div>
 
-          {/* Theme Toggle */}
-          <button
-            className="btn-secondary"
-            style={{ width: 36, height: 36, padding: 0 }}
-            onClick={onToggleTheme}
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+          <div className="header-divider-line" />
 
-          {/* Compare with Swiggy (Official MCP) Button */}
+          {/* GROUP 4: Provider / Admin */}
+          <div className="utility-cluster provider-admin-cluster">
+            <button
+              type="button"
+              className={`provider-status-pill ${swiggyConnected ? 'connected' : 'ready'}`}
+              onClick={handleConnectSwiggy}
+              title={swiggyConnected ? "Swiggy /food MCP Live & Authorized" : "Authorize Swiggy account via Builders Club MCP (OAuth 2.1)"}
+              aria-label="Swiggy Integration Status"
+            >
+              <span className={`provider-indicator-dot ${swiggyConnected ? 'active-emerald' : 'ready-orange'}`} />
+              <span className="provider-label">
+                {swiggyConnected ? 'Swiggy Live' : 'Compare with Swiggy'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`admin-nav-btn ${viewMode === 'admin' ? 'active' : ''}`}
+              onClick={onToggleAdmin}
+              title="Admin Health & Monitoring Console"
+              aria-label="Admin Dashboard"
+            >
+              <Settings size={14} />
+              <span>Admin</span>
+            </button>
+          </div>
+
+          <div className="header-divider-line" />
+
+          {/* GROUP 5: Account & Primary CTA */}
+          <div className="utility-cluster account-action-cluster">
+            {user ? (
+              <div className="user-auth-pill">
+                <button
+                  type="button"
+                  className={`user-profile-btn ${viewMode === 'dashboard' ? 'active' : ''}`}
+                  onClick={() => onToggleDashboard()}
+                  title={`Account: ${user.name || user.email}`}
+                  aria-label="User Account Dashboard"
+                >
+                  <UserIcon size={14} />
+                  <span className="user-firstname">
+                    {user.name ? user.name.split(' ')[0] : 'Account'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="user-logout-btn"
+                  onClick={logout}
+                  title="Sign Out of Account"
+                  aria-label="Sign Out"
+                >
+                  <LogOut size={13} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                type="button" 
+                className="signin-nav-btn" 
+                onClick={onOpenAuth}
+                aria-label="Sign In or Register"
+              >
+                Sign In
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="primary-compare-cta"
+              onClick={onStartComparing}
+              aria-label="Start comparing food prices"
+            >
+              <span>Start Comparing</span>
+              <ArrowRight size={15} className="cta-arrow-icon" />
+            </button>
+          </div>
+        </div>
+
+        {/* ===================================================
+            MOBILE HEADER CONTROLS (TABLET & MOBILE)
+           =================================================== */}
+        <div className="mobile-header-bar">
           <button
             type="button"
-            className="btn-secondary"
-            onClick={handleConnectSwiggy}
-            title={swiggyConnected ? "Swiggy /food MCP Live" : "Authorize Swiggy account via Builders Club MCP (OAuth 2.1)"}
-            style={{
-              borderColor: swiggyConnected ? 'rgba(56, 161, 105, 0.4)' : 'rgba(252, 128, 25, 0.4)',
-              background: swiggyConnected ? 'rgba(56, 161, 105, 0.08)' : 'rgba(252, 128, 25, 0.08)',
-              color: swiggyConnected ? 'var(--accent-emerald)' : '#fc8019',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              gap: 6
-            }}
+            className="mobile-loc-pill"
+            onClick={onOpenLocation}
+            title="Change Delivery Location"
+            aria-label="Delivery Location"
           >
-            <span style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              backgroundColor: swiggyConnected ? 'var(--accent-emerald)' : '#fc8019',
-              display: 'inline-block'
-            }} />
-            <span>{swiggyConnected ? 'Swiggy Live' : 'Compare with Swiggy'}</span>
+            <MapPin size={13} color="var(--accent-gold)" />
+            <span>{location.area || location.city}</span>
           </button>
 
-          {/* Admin Switcher */}
           <button
-            className={`btn-secondary ${viewMode === 'admin' ? 'active' : ''}`}
-            onClick={onToggleAdmin}
-            title="Admin Management Console"
-            style={viewMode === 'admin' ? { borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' } : {}}
-          >
-            <Settings size={15} />
-            <span style={{ display: 'inline', fontSize: '0.82rem' }}>Admin</span>
-          </button>
-
-          {/* Auth Button */}
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                className={`btn-secondary ${viewMode === 'dashboard' ? 'active' : ''}`}
-                onClick={() => onToggleDashboard()}
-                style={{ fontSize: '0.85rem' }}
-              >
-                <UserIcon size={15} />
-                <span>{user.name ? user.name.split(' ')[0] : 'Account'}</span>
-              </button>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: '0.78rem', padding: '6px 10px' }}
-                onClick={logout}
-              >
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <button className="btn-secondary" style={{ fontSize: '0.85rem' }} onClick={onOpenAuth}>
-              Sign In
-            </button>
-          )}
-
-          {/* Subtle Primary "Start Comparing" Button */}
-          <button
-            className="btn-gold"
-            style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            type="button"
+            className="mobile-cta-button"
             onClick={onStartComparing}
+            aria-label="Start Comparing"
           >
-            <span>Start Comparing</span>
-            <ArrowRight size={14} />
+            Compare
           </button>
 
-          {/* Mobile Hamburger Toggle */}
           <button
-            className="btn-secondary"
-            style={{ width: 36, height: 36, padding: 0, display: 'none' }}
+            type="button"
+            className="mobile-hamburger-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open navigation menu"}
+            aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
+
       </div>
+
+      {/* ===================================================
+          MOBILE SLIDE-DOWN DRAWER MENU
+         =================================================== */}
+      {mobileMenuOpen && (
+        <div className="mobile-drawer-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-drawer-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-inner">
+              
+              {/* Drawer Top Navigation Links */}
+              <div className="mobile-nav-section">
+                <div className="mobile-section-label">Navigation</div>
+                <button
+                  type="button"
+                  className={`mobile-nav-link ${viewMode === 'home' ? 'active' : ''}`}
+                  onClick={() => handleNavClick(onStartComparing)}
+                >
+                  <Compass size={17} color="var(--accent-gold)" />
+                  <span>Compare Dishes</span>
+                </button>
+                <button
+                  type="button"
+                  className="mobile-nav-link"
+                  onClick={scrollToHowItWorks}
+                >
+                  <HelpCircle size={17} color="var(--accent-gold)" />
+                  <span>How It Works</span>
+                </button>
+                <button
+                  type="button"
+                  className="mobile-nav-link"
+                  onClick={() => handleNavClick(() => onToggleDashboard('alerts'))}
+                >
+                  <Bell size={17} color="var(--accent-gold)" />
+                  <span>Price Drop Alerts</span>
+                </button>
+                <button
+                  type="button"
+                  className="mobile-nav-link"
+                  onClick={() => handleNavClick(() => onToggleDashboard('favorites'))}
+                >
+                  <Heart size={17} color="var(--accent-gold)" />
+                  <span>Favorite Dishes</span>
+                </button>
+              </div>
+
+              <div className="mobile-drawer-divider" />
+
+              {/* Drawer Utilities */}
+              <div className="mobile-nav-section">
+                <div className="mobile-section-label">Preferences & Providers</div>
+                
+                <button
+                  type="button"
+                  className="mobile-utility-row"
+                  onClick={() => handleNavClick(onOpenLocation)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <MapPin size={17} color="var(--accent-gold)" />
+                    <span>Location: <strong>{location.area || location.city}</strong></span>
+                  </div>
+                  <span className="mobile-pill-tag">Change</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="mobile-utility-row"
+                  onClick={handleConnectSwiggy}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span 
+                      style={{
+                        width: 9,
+                        height: 9,
+                        borderRadius: '50%',
+                        backgroundColor: swiggyConnected ? 'var(--accent-emerald)' : '#fc8019',
+                        display: 'inline-block'
+                      }} 
+                    />
+                    <span>{swiggyConnected ? 'Swiggy Live (Connected)' : 'Compare with Swiggy'}</span>
+                  </div>
+                  <span className="mobile-pill-tag">{swiggyConnected ? 'Synced' : 'OAuth 2.1'}</span>
+                </button>
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    className="mobile-utility-btn"
+                    onClick={onToggleTheme}
+                    style={{ flex: 1 }}
+                  >
+                    {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                    <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`mobile-utility-btn ${viewMode === 'admin' ? 'active' : ''}`}
+                    onClick={() => handleNavClick(onToggleAdmin)}
+                    style={{ flex: 1 }}
+                  >
+                    <Settings size={15} />
+                    <span>Admin</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mobile-drawer-divider" />
+
+              {/* Drawer Account & Action */}
+              <div className="mobile-nav-section">
+                <div className="mobile-section-label">Account</div>
+                {user ? (
+                  <div className="mobile-user-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <UserIcon size={18} color="var(--accent-gold)" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{user.name || user.email}</div>
+                        {user.name && user.email && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{user.email}</div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                      onClick={() => handleNavClick(logout)}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ width: '100%', padding: '12px', fontSize: '0.92rem', marginBottom: 12 }}
+                    onClick={() => handleNavClick(onOpenAuth)}
+                  >
+                    Sign In / Register
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="primary-compare-cta"
+                  style={{ width: '100%', justifyContent: 'center', height: 48, fontSize: '0.95rem' }}
+                  onClick={() => handleNavClick(onStartComparing)}
+                >
+                  <span>Start Comparing Prices</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

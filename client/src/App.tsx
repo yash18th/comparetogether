@@ -233,7 +233,7 @@ const MainApp: React.FC = () => {
     }, 100);
   };
 
-  const handleOpenDashboardTab = (tab?: 'favorites' | 'alerts') => {
+  const handleOpenDashboardTab = (tab?: 'favorites' | 'alerts' | 'history') => {
     if (tab) setDashboardTab(tab);
     setViewMode('dashboard');
   };
