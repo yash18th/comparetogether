@@ -19,7 +19,7 @@ import { UserDashboard } from './components/UserDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { api } from './services/api';
 import type { SearchProductItem } from './types';
-import { ArrowLeft, AlertCircle, Search } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Search, X, ArrowRight } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { location } = useLocation();
@@ -374,9 +374,8 @@ const MainApp: React.FC = () => {
                   executeSearch(searchQuery.trim());
                 }}
                 className="search-input-wrapper"
-                style={{ borderColor: 'var(--border-glass)' }}
               >
-                <Search size={18} color="var(--accent-gold)" />
+                <Search size={20} color="var(--accent-gold)" style={{ flexShrink: 0 }} />
                 <input
                   type="text"
                   className="search-input"
@@ -385,13 +384,27 @@ const MainApp: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   disabled={loading}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => {
+                      setSearchQuery('');
+                    }}
+                    title="Clear search"
+                    aria-label="Clear search"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
                 <button
                   type="submit"
-                  className="btn-gold"
-                  style={{ padding: '7px 18px', fontSize: '0.84rem', opacity: loading ? 0.7 : 1 }}
+                  className="btn-gold search-submit-btn"
                   disabled={loading}
+                  style={{ opacity: loading ? 0.7 : 1 }}
                 >
-                  {loading ? 'Searching...' : 'Search'}
+                  <span>{loading ? 'Searching...' : 'Search'}</span>
+                  <ArrowRight size={15} />
                 </button>
               </form>
             </div>

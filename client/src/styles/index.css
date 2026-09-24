@@ -984,6 +984,101 @@ body {
   border-color: var(--accent-gold);
 }
 
+/* ==============================================================================
+   In-Page Results & Secondary Search Bar
+   ============================================================================== */
+.search-container {
+  width: 100%;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 6px 8px 6px 20px;
+  background: rgba(22, 28, 40, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid rgba(197, 160, 89, 0.45);
+  border-radius: var(--radius-full);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45), 0 0 20px rgba(197, 160, 89, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  box-sizing: border-box;
+}
+
+[data-theme='light'] .search-input-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(197, 160, 89, 0.55);
+  box-shadow: 0 10px 30px rgba(197, 160, 89, 0.18), 0 0 16px rgba(197, 160, 89, 0.08);
+}
+
+.search-input-wrapper:hover {
+  border-color: rgba(212, 175, 55, 0.7);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 25px rgba(197, 160, 89, 0.22);
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--accent-gold);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.65), 0 0 35px rgba(197, 160, 89, 0.35);
+  transform: translateY(-2px);
+}
+
+.search-input {
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 1.02rem;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  padding: 10px 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+[data-theme='light'] .search-input {
+  color: #12161f;
+}
+
+[data-theme='light'] .search-input::placeholder {
+  color: #6b7280;
+}
+
+.search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.search-clear-btn:hover {
+  color: var(--accent-gold);
+  background: rgba(197, 160, 89, 0.15);
+}
+
+.search-submit-btn {
+  padding: 10px 24px;
+  font-size: 0.88rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* Heritage Ornamental Divider */
 .heritage-divider {
   display: flex;
