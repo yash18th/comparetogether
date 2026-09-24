@@ -44,14 +44,29 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [swiggyConnected, setSwiggyConnected] = useState(false);
+  const [swiggyStatusLabel, setSwiggyStatusLabel] = useState('Swiggy Auth Required');
 
   useEffect(() => {
     let isMounted = true;
     api.getSwiggyStatus().then(status => {
       if (isMounted) {
-        setSwiggyConnected(Boolean(status?.connected));
+        if (status?.connected) {
+          setSwiggyConnected(true);
+          setSwiggyStatusLabel('Swiggy Connected');
+        } else if (status?.status === 'UNAVAILABLE') {
+          setSwiggyConnected(false);
+          setSwiggyStatusLabel('Swiggy Unavailable');
+        } else {
+          setSwiggyConnected(false);
+          setSwiggyStatusLabel('Swiggy Auth Required');
+        }
       }
-    }).catch(() => {});
+    }).catch(() => {
+      if (isMounted) {
+        setSwiggyConnected(false);
+        setSwiggyStatusLabel('Swiggy Unavailable');
+      }
+    });
     return () => { isMounted = false; };
   }, []);
 
@@ -185,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span className={`provider-indicator-dot ${swiggyConnected ? 'active-emerald' : 'ready-orange'}`} />
               <span className="provider-label">
-                {swiggyConnected ? 'Swiggy Live' : 'Compare with Swiggy'}
+                {swiggyStatusLabel}
               </span>
             </button>
 
@@ -367,7 +382,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         display: 'inline-block'
                       }} 
                     />
-                    <span>{swiggyConnected ? 'Swiggy Live (Connected)' : 'Compare with Swiggy'}</span>
+                    <span>{swiggyStatusLabel}</span>
                   </div>
                   <span className="mobile-pill-tag">{swiggyConnected ? 'Synced' : 'OAuth 2.1'}</span>
                 </button>

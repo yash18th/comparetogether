@@ -49,14 +49,23 @@ app.use(express.json());
 // Initialize & Seed Database safely
 seedDatabase();
 
+import comparisonRoutes from './routes/comparison.js';
+
 // Route Mounts
 app.use('/api/search', searchRoutes);
-app.use('/api/compare', compareRoutes);
+app.use('/api/compare', comparisonRoutes);
+app.use('/api/providers', comparisonRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/integrations/swiggy', swiggyRoutes);
+
+// Step 4 OAuth routes specification aliases: /auth/swiggy/*
+app.get('/auth/swiggy/start', (req, res) => res.redirect('/api/integrations/swiggy/connect'));
+app.get('/auth/swiggy/callback', (req, res) => res.redirect(`/api/integrations/swiggy/callback?${new URLSearchParams(req.query as any).toString()}`));
+app.get('/auth/swiggy/status', (req, res) => res.redirect('/api/integrations/swiggy/status'));
+app.post('/auth/swiggy/logout', (req, res) => res.redirect(307, '/api/integrations/swiggy/disconnect'));
 
 // Health check handler with DB and provider status verification
 const getHealthStatus = () => {

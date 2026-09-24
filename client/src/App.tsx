@@ -53,21 +53,39 @@ const MainApp: React.FC = () => {
   const [comparisonEngineLoading, setComparisonEngineLoading] = useState(false);
   const [comparisonEngineError, setComparisonEngineError] = useState<string | null>(null);
 
-  // Check engine health in background without blocking UI
+  // Check engine and provider health in background without blocking UI
   const checkEngineHealth = useCallback(async () => {
     setComparisonEngineLoading(true);
     try {
       const res = await api.checkHealth();
       if (res.ok) {
         setComparisonEngineReady(true);
-        setComparisonEngineError(null);
+        // Check provider status for granular feedback
+        try {
+          const prov = await api.getProvidersStatus();
+          const swiggyUnauth = prov.swiggy?.status === 'authentication_required';
+          const swiggyUnavail = prov.swiggy?.status === 'unavailable';
+          const zomatoUnavail = prov.zomato?.status === 'unavailable';
+
+          if (swiggyUnavail && zomatoUnavail) {
+            setComparisonEngineError('Unable to retrieve provider data.');
+          } else if (swiggyUnavail) {
+            setComparisonEngineError('Swiggy is temporarily unavailable. Showing available results.');
+          } else if (swiggyUnauth) {
+            setComparisonEngineError('Connect your provider account to compare live prices.');
+          } else {
+            setComparisonEngineError(null);
+          }
+        } catch {
+          setComparisonEngineError(null);
+        }
       } else {
         setComparisonEngineReady(false);
-        setComparisonEngineError(res.message || 'Comparison service temporarily unavailable');
+        setComparisonEngineError('Connecting to comparison service...');
       }
     } catch {
       setComparisonEngineReady(false);
-      setComparisonEngineError('Comparison service temporarily unavailable');
+      setComparisonEngineError('Connecting to comparison service...');
     } finally {
       setComparisonEngineLoading(false);
     }

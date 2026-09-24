@@ -160,11 +160,16 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
           </button>
         </form>
 
-        {/* Subtle Non-Blocking Engine Status Indicator & Swiggy MCP Action */}
+        {/* Dynamic Provider & Comparison Engine Status Indicator (Step 17 & Step 16) */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18, minHeight: 22 }}>
-          {comparisonEngineError ? (
+          {comparisonEngineLoading ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              <span className="spinner" style={{ width: 10, height: 10, border: '2px solid rgba(212,175,55,0.3)', borderTopColor: 'var(--accent-gold)', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
+              <span>Comparing prices across providers...</span>
+            </div>
+          ) : comparisonEngineError ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(168, 88, 66, 0.18)', border: '1px solid rgba(168, 88, 66, 0.35)', padding: '3px 12px', borderRadius: 9999, fontSize: '0.78rem', color: '#e58e7b' }}>
-              <span>Comparison service temporarily unavailable</span>
+              <span>{comparisonEngineError}</span>
               {onRetryEngine && (
                 <button
                   type="button"
@@ -178,11 +183,7 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
           ) : comparisonEngineReady ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--accent-gold)', opacity: 0.9 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--accent-emerald)', display: 'inline-block' }} />
-              <span>Price comparison ready</span>
-            </div>
-          ) : comparisonEngineLoading ? (
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Checking comparison engine connectivity...
+              <span>Price comparison ready across platforms</span>
             </div>
           ) : null}
 
@@ -207,7 +208,7 @@ export const HeritageHero: React.FC<HeritageHeroProps> = ({
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fc8019', display: 'inline-block' }} />
-            <span>Compare with Swiggy (Official MCP)</span>
+            <span>Connect Swiggy (Official MCP)</span>
           </button>
         </div>
 

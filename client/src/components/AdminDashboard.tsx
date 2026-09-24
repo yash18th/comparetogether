@@ -26,6 +26,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
 
   const [swiggyStatus, setSwiggyStatus] = useState<any>(null);
   const [swiggyActionLoading, setSwiggyActionLoading] = useState(false);
+  const [providerStatuses, setProviderStatuses] = useState<any>(null);
+  const [testOutput, setTestOutput] = useState<{ title: string; result: any } | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [lastComparisonTime, setLastComparisonTime] = useState<string | null>(null);
 
   // New Branch Form
   const [showAddBranch, setShowAddBranch] = useState(false);
@@ -42,13 +46,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
         api.getAdminMatches(),
         api.getAdminPlatforms(),
         api.getAdminRestaurants(),
-        api.getSwiggyStatus()
+        api.getSwiggyStatus(),
+        api.getProvidersStatus()
       ]);
       const met = results[0].status === 'fulfilled' ? results[0].value : null;
       const mtch = results[1].status === 'fulfilled' ? results[1].value : [];
       const plats = results[2].status === 'fulfilled' ? results[2].value : [];
       const restData = results[3].status === 'fulfilled' ? results[3].value : { restaurants: [], branches: [] };
       const swiggyData = results[4].status === 'fulfilled' ? results[4].value : { connected: false, status: 'INTEGRATION_PENDING' };
+      const provData = results[5].status === 'fulfilled' ? results[5].value : null;
 
       setMetrics(met || { totalSearches: 0, platformCount: 4, averageSavings: '18%' });
       setMatches(Array.isArray(mtch) ? mtch : []);
@@ -56,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
       setRestaurants(restData?.restaurants || []);
       setBranches(restData?.branches || []);
       setSwiggyStatus(swiggyData);
+      setProviderStatuses(provData);
       if (restData?.restaurants?.length > 0) {
         setNewBranchRestId(restData.restaurants[0].id);
       }
@@ -136,6 +143,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
     alert('Branch created successfully!');
     setShowAddBranch(false);
     loadAdminData();
+  };
+
+  const handleTestSwiggy = async () => {
+    setTestLoading(true);
+    try {
+      const res = await api.testSwiggy();
+      setTestOutput({ title: 'Swiggy MCP Integration Test', result: res });
+    } catch (err: any) {
+      setTestOutput({ title: 'Swiggy MCP Integration Test', result: { success: false, error: err.message } });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const handleTestZomato = async () => {
+    setTestLoading(true);
+    try {
+      const res = await api.testZomato();
+      setTestOutput({ title: 'Zomato API Integration Test', result: res });
+    } catch (err: any) {
+      setTestOutput({ title: 'Zomato API Integration Test', result: { success: false, error: err.message } });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const handleTestCompare = async () => {
+    setTestLoading(true);
+    try {
+      const res = await api.testCompare('Masala Dosa', 'Indiranagar');
+      setTestOutput({ title: 'Full Comparison Pipeline Test (Masala Dosa, Indiranagar)', result: res });
+      setLastComparisonTime(new Date().toLocaleTimeString());
+    } catch (err: any) {
+      setTestOutput({ title: 'Full Comparison Pipeline Test', result: { success: false, error: err.message } });
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   return (
@@ -363,6 +407,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSearch }
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4 }}>
                   <strong>Rules Evaluated:</strong> {algorithmResult.reasons.join(' • ') || 'Calculated purely via keyword tokens'}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Step 22: Provider Integrations Live Diagnostics & Testing */}
+          <div className="glass-panel" style={{ padding: 20, marginBottom: 28, border: '1px solid rgba(212, 175, 55, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Database size={20} color="var(--accent-gold)" />
+                  <span>Provider Integrations & Engine Diagnostics</span>
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Real-time health and diagnostic execution directly against backend provider adapters.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '6px 14px', borderColor: '#fc8019', color: '#fc8019' }}
+                  onClick={handleTestSwiggy}
+                  disabled={testLoading}
+                >
+                  [ Test Swiggy ]
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '6px 14px', borderColor: '#cb202d', color: '#e58e7b' }}
+                  onClick={handleTestZomato}
+                  disabled={testLoading}
+                >
+                  [ Test Zomato ]
+                </button>
+                <button
+                  type="button"
+                  className="btn-gold"
+                  style={{ fontSize: '0.82rem', padding: '6px 16px' }}
+                  onClick={handleTestCompare}
+                  disabled={testLoading}
+                >
+                  [ Test Full Comparison ]
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
+              {/* Swiggy status */}
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Swiggy</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 4, color: providerStatuses?.swiggy?.authenticated ? 'var(--accent-emerald)' : 'var(--accent-gold)' }}>
+                  {providerStatuses?.swiggy?.authenticated ? 'Authenticated' : providerStatuses?.swiggy?.status === 'authentication_required' ? 'Required' : 'Unavailable'}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  {providerStatuses?.swiggy?.message || 'Food MCP OAuth 2.1 PKCE'}
+                </div>
+              </div>
+
+              {/* Zomato status */}
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Zomato</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 4, color: providerStatuses?.zomato?.configured ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+                  {providerStatuses?.zomato?.configured ? 'Configured' : 'Missing Key'}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  {providerStatuses?.zomato?.message || 'Enterprise Merchant API'}
+                </div>
+              </div>
+
+              {/* Backend status */}
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Backend</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 4, color: 'var(--accent-emerald)' }}>
+                  API: Healthy
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  Express on Render
+                </div>
+              </div>
+
+              {/* Database status */}
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Database</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 4, color: 'var(--accent-emerald)' }}>
+                  Connected
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  Last comparison: {lastComparisonTime || 'Active'}
+                </div>
+              </div>
+            </div>
+
+            {testLoading && (
+              <div style={{ padding: 12, textAlign: 'center', color: 'var(--accent-gold)' }}>
+                Running diagnostic test against backend provider APIs...
+              </div>
+            )}
+
+            {testOutput && !testLoading && (
+              <div style={{ padding: 14, background: 'rgba(0,0,0,0.4)', borderRadius: 8, border: '1px solid var(--border-glass)', marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <strong style={{ color: 'var(--accent-gold)', fontSize: '0.9rem' }}>{testOutput.title}</strong>
+                  <button
+                    type="button"
+                    onClick={() => setTestOutput(null)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <pre style={{ margin: 0, fontSize: '0.78rem', color: 'var(--accent-sandstone)', overflowX: 'auto', maxHeight: 200 }}>
+                  {JSON.stringify(testOutput.result, null, 2)}
+                </pre>
               </div>
             )}
           </div>

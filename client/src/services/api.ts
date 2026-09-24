@@ -53,10 +53,10 @@ const API_BASE = getApiBaseUrl();
 
 export const api = {
   getBaseUrl: () => getApiBaseUrl(),
-  // Service health check
+  // Service health check with 12s timeout to accommodate cold starts gracefully
   checkHealth: async (): Promise<{ ok: boolean; message?: string }> => {
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/health`, {}, 5000);
+      const res = await fetchWithTimeout(`${API_BASE}/health`, {}, 12000);
       if (res.ok) {
         return { ok: true };
       }
@@ -64,7 +64,28 @@ export const api = {
     } catch (err: any) {
       return {
         ok: false,
-        message: err.name === 'AbortError' ? 'Health check timed out' : 'Comparison backend unreachable'
+        message: err.name === 'AbortError' ? 'Connecting to backend...' : 'Connecting to comparison service...'
+      };
+    }
+  },
+
+  // Official Provider Health Status endpoint (GET /api/providers/status)
+  getProvidersStatus: async (): Promise<{
+    swiggy: { configured: boolean; authenticated: boolean; status: string; message?: string };
+    zomato: { configured: boolean; authenticated: boolean; status: string; message?: string };
+  }> => {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/providers/status`, {}, 8000);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return {
+        swiggy: data.swiggy || { configured: false, authenticated: false, status: 'unavailable' },
+        zomato: data.zomato || { configured: false, authenticated: false, status: 'unavailable' }
+      };
+    } catch {
+      return {
+        swiggy: { configured: false, authenticated: false, status: 'unavailable', message: 'Unable to query status' },
+        zomato: { configured: false, authenticated: false, status: 'unavailable', message: 'Unable to query status' }
       };
     }
   },
@@ -442,5 +463,25 @@ export const api = {
     const res = await fetchWithTimeout(`${API_BASE}/integrations/swiggy/connect?format=json`, {}, 8000);
     const data = await res.json();
     return data.authUrl;
+  },
+
+  // Provider Diagnostic Testing (Step 22)
+  testSwiggy: async (): Promise<any> => {
+    const res = await fetchWithTimeout(`${API_BASE}/providers/test/swiggy`, { method: 'POST' }, 10000);
+    return res.json();
+  },
+
+  testZomato: async (): Promise<any> => {
+    const res = await fetchWithTimeout(`${API_BASE}/providers/test/zomato`, { method: 'POST' }, 10000);
+    return res.json();
+  },
+
+  testCompare: async (query = 'Masala Dosa', location = 'Indiranagar'): Promise<any> => {
+    const res = await fetchWithTimeout(`${API_BASE}/providers/test/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, location })
+    }, 15000);
+    return res.json();
   }
 };
