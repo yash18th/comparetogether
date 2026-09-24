@@ -6,6 +6,7 @@ import { SearchEngine } from '../engine/SearchEngine.js';
 import { NormalizationEngine } from '../engine/NormalizationEngine.js';
 import { NormalizedPlatformProduct } from '../adapters/PlatformAdapter.js';
 import { db } from '../db/database.js';
+import { FoodComparisonService } from '../services/comparison/FoodComparisonService.js';
 
 const router = Router();
 
@@ -247,6 +248,39 @@ const handleCompare = async (req: any, res: any) => {
     });
   }
 };
+
+/**
+ * GET /api/compare?item=Masala%20Dosa
+ * Direct food item comparison endpoint matching the same dish across Zomato and Swiggy
+ */
+router.get('/', async (req, res) => {
+  try {
+    const itemQuery = (req.query.item || req.query.query || req.query.q || '').toString().trim();
+    if (!itemQuery) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required query parameter: item (e.g., /api/compare?item=Masala%20Dosa)'
+      });
+    }
+
+    const location = (req.query.location || req.query.area || 'Indiranagar').toString().trim();
+    const userId = (req.query.userId || req.headers['x-user-id'] || 'default_user').toString().trim();
+
+    const comparisonResult = await FoodComparisonService.compareFoodItem(itemQuery, location, userId);
+
+    res.json({
+      success: true,
+      ...comparisonResult
+    });
+  } catch (error: any) {
+    console.error('GET /api/compare error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to compare food item',
+      error: error.message
+    });
+  }
+});
 
 router.post('/', handleCompare);
 router.post('/search', handleCompare);
